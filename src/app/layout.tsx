@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Archivo } from "next/font/google";
 import "./globals.css";
+import ConflictBanner from "@/components/ConflictBanner";
 import Sidebar from "@/components/Sidebar";
 import { HubProvider } from "@/lib/store";
 
@@ -23,6 +24,7 @@ export default function RootLayout({
     <html lang="de">
       <body className={`${sans.variable} antialiased`}>
         <HubProvider>
+          <ConflictBanner />
           <Sidebar />
           <main className="ml-60 min-h-screen px-8 py-8">
             <div className="mx-auto max-w-6xl">{children}</div>

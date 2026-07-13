@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useHub } from "@/lib/store";
 import type { Program } from "@/lib/types";
@@ -116,11 +117,21 @@ export default function ProgramsPage() {
                     />
                   </div>
                 </div>
-                <div className="mt-3 flex gap-2">
+                <div className="mt-3 flex items-center gap-2">
                   <Chip tone="blue">
                     {projects.length} {projects.length === 1 ? "project" : "projects"}
                   </Chip>
                   <Chip>{files} files</Chip>
+                  <span className="flex-1" />
+                  <Link
+                    href={`/programs/${p.id}`}
+                    className="flex items-center gap-1 rounded-xl bg-gradient-to-b from-[#0a5cd5] to-[#004a99] px-3.5 py-1.5 text-sm font-bold text-white transition-all hover:brightness-110 active:scale-[0.98]"
+                  >
+                    Open
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="m9 18 6-6-6-6" />
+                    </svg>
+                  </Link>
                 </div>
               </Card>
             );

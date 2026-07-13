@@ -256,3 +256,264 @@ export function interviewMeta(n: Note) {
     codes: n.codes.length,
   };
 }
+
+// ---- SOP quality checks ("Vault-Lint") ----
+// Derived from the vault's own rules in 08_methods: personas need 3+
+// interviews, pain points belong to exactly one theme, recommendations
+// anchor to exactly one insight, confidence must match evidence.
+
+export type LintLevel = "error" | "warning" | "info";
+
+export interface LintFinding {
+  level: LintLevel;
+  rule: string;
+  message: string;
+  note: Note;
+}
+
+export function lintVault(vault: Vault | undefined): LintFinding[] {
+  if (!vault) return [];
+  const findings: LintFinding[] = [];
+  const idx = slugIndex(vault);
+  const themes = notesOf(vault, "theme");
+
+  const linkedTypes = (n: Note, type: NoteType) =>
+    n.links
+      .map((l) => idx.get(l.toLowerCase()))
+      .filter((x): x is Note => !!x && x.type === type);
+
+  for (const n of notesOf(vault, "pain-point")) {
+    const themeLinks = new Set(
+      [
+        ...linkedTypes(n, "theme").map((t) => t.slug.toLowerCase()),
+        ...(n.frontmatter["theme"] ? [n.frontmatter["theme"].toLowerCase()] : []),
+      ]
+    );
+    if (themeLinks.size === 0) {
+      findings.push({
+        level: "error",
+        rule: "PP ohne Theme",
+        message: "Pain Point ist keinem Theme zugeordnet (SOP: genau ein Theme).",
+        note: n,
+      });
+    } else if (themeLinks.size > 1) {
+      findings.push({
+        level: "warning",
+        rule: "PP mit mehreren Themes",
+        message: `Pain Point verweist auf ${themeLinks.size} Themes — SOP verlangt genau eines (splitten oder Themes zusammenlegen).`,
+        note: n,
+      });
+    }
+    if (n.quotes.length === 0) {
+      findings.push({
+        level: "warning",
+        rule: "Keine Evidenz",
+        message: "Pain Point enthält kein belegtes Zitat.",
+        note: n,
+      });
+    }
+  }
+
+  for (const n of notesOf(vault, "recommendation")) {
+    const insights = linkedTypes(n, "insight");
+    if (insights.length === 0) {
+      findings.push({
+        level: "error",
+        rule: "Rec ohne Anker-Insight",
+        message: "Recommendation hat kein verknüpftes Anker-Insight (SOP Schritt 9).",
+        note: n,
+      });
+    } else if (insights.length > 1) {
+      findings.push({
+        level: "warning",
+        rule: "Rec mit mehreren Insights",
+        message: `Recommendation verweist auf ${insights.length} Insights — SOP verlangt genau ein Anker-Insight.`,
+        note: n,
+      });
+    }
+  }
+
+  for (const n of notesOf(vault, "persona")) {
+    const count =
+      parseInt(n.frontmatter["anzahl_interviews"] ?? "0", 10) ||
+      linkedTypes(n, "interview").length;
+    const isProto = (n.frontmatter["status"] ?? "").toLowerCase().includes("proto");
+    if (count < 3 && !isProto) {
+      findings.push({
+        level: "error",
+        rule: "Persona zu früh bestätigt",
+        message: `Persona basiert auf ${count} Interview(s), ist aber nicht als proto-persona markiert (SOP: erst ab 3).`,
+        note: n,
+      });
+    } else if (count < 3) {
+      findings.push({
+        level: "info",
+        rule: "Proto-Persona",
+        message: `Proto-Persona (${count} Interview(s)) — als Hypothese behandeln.`,
+        note: n,
+      });
+    }
+  }
+
+  for (const n of themes) {
+    const conf = confidenceOf(n);
+    const ic = parseInt(n.frontmatter["interview_count"] ?? "0", 10) || 0;
+    if (conf === "hoch" && ic > 0 && ic < 3) {
+      findings.push({
+        level: "warning",
+        rule: "Confidence vs. Evidenz",
+        message: `Confidence „Hoch" bei nur ${ic} Interview(s) — Definition verlangt i. d. R. 3+.`,
+        note: n,
+      });
+    }
+    const lower = n.slug.toLowerCase();
+    const hasPP = notesOf(vault, "pain-point").some(
+      (pp) =>
+        pp.links.some((l) => l.toLowerCase() === lower) ||
+        pp.frontmatter["theme"]?.toLowerCase() === lower
+    );
+    if (!hasPP) {
+      findings.push({
+        level: "info",
+        rule: "Theme ohne Pain Points",
+        message: "Kein Pain Point verweist auf dieses Theme.",
+        note: n,
+      });
+    }
+  }
+
+  for (const n of notesOf(vault, "insight")) {
+    if (linkedTypes(n, "theme").length === 0) {
+      findings.push({
+        level: "warning",
+        rule: "Insight ohne Themes",
+        message: "Insight verweist auf keine stützenden Themes.",
+        note: n,
+      });
+    }
+  }
+
+  const order: LintLevel[] = ["error", "warning", "info"];
+  return findings.sort((a, b) => order.indexOf(a.level) - order.indexOf(b.level));
+}
+
+// ---- codes index ----
+
+export interface CodeEntry {
+  code: string;
+  /** meaning units (quotes) tagged with this code, with their interview */
+  quotes: { note: Note; text: string; source?: string }[];
+  /** non-interview notes referencing the code */
+  referencedBy: Note[];
+  total: number;
+}
+
+export function codesIndex(vault: Vault | undefined): CodeEntry[] {
+  if (!vault) return [];
+  const map = new Map<string, CodeEntry>();
+  const entry = (code: string) => {
+    if (!map.has(code)) {
+      map.set(code, { code, quotes: [], referencedBy: [], total: 0 });
+    }
+    return map.get(code)!;
+  };
+  for (const n of vault.notes) {
+    if (n.type === "interview") {
+      for (const q of n.quotes) {
+        if (!q.code) continue;
+        const e = entry(q.code);
+        e.quotes.push({
+          note: n,
+          text: q.text,
+          source: n.frontmatter["teilnehmer_id"] || n.title,
+        });
+      }
+    } else {
+      for (const c of n.codes) entry(c).referencedBy.push(n);
+    }
+  }
+  const out = [...map.values()];
+  for (const e of out) e.total = e.quotes.length + e.referencedBy.length;
+  return out.sort((a, b) => b.total - a.total || a.code.localeCompare(b.code));
+}
+
+// ---- severity × confidence matrix (pain points) ----
+
+export const MATRIX_SEVERITIES = ["kritisch", "hoch", "mittel", "niedrig"] as const;
+export const MATRIX_CONFIDENCES = ["hoch", "mittel", "niedrig"] as const;
+
+export function severityConfidenceMatrix(vault: Vault | undefined) {
+  const cells = new Map<string, Note[]>();
+  for (const n of notesOf(vault, "pain-point")) {
+    const sev = severityOf(n) ?? "mittel";
+    const conf = confidenceOf(n) ?? "niedrig";
+    const key = `${sev}:${conf}`;
+    if (!cells.has(key)) cells.set(key, []);
+    cells.get(key)!.push(n);
+  }
+  return cells;
+}
+
+// ---- cross-project aggregation (program level) ----
+
+export interface AggregatedTheme {
+  title: string;
+  /** per project (chronological): the theme note + its confidence */
+  occurrences: { projectId: string; projectName: string; note: Note; confidence: string }[];
+  totalQuotes: number;
+  maxConfidence: string;
+}
+
+function normTitle(t: string): string {
+  return t
+    .toLowerCase()
+    .replace(/[„"“”]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function aggregateThemes(
+  projects: { id: string; name: string; createdAt: number; vault?: Vault }[]
+): AggregatedTheme[] {
+  const map = new Map<string, AggregatedTheme>();
+  const sorted = [...projects].sort((a, b) => a.createdAt - b.createdAt);
+  for (const p of sorted) {
+    for (const note of notesOf(p.vault, "theme")) {
+      // match by slug first (stable across exports), then by normalized title
+      const key = note.slug.toLowerCase() || normTitle(note.title);
+      const existing =
+        map.get(key) ??
+        [...map.values()].find((t) => normTitle(t.title) === normTitle(note.title));
+      const conf = confidenceOf(note) ?? "niedrig";
+      if (existing) {
+        existing.occurrences.push({
+          projectId: p.id,
+          projectName: p.name,
+          note,
+          confidence: conf,
+        });
+        existing.totalQuotes += note.quotes.length;
+        if (
+          (CONFIDENCE_ORDER[conf] ?? 0) >
+          (CONFIDENCE_ORDER[existing.maxConfidence] ?? 0)
+        ) {
+          existing.maxConfidence = conf;
+        }
+      } else {
+        map.set(key, {
+          title: note.title,
+          occurrences: [
+            { projectId: p.id, projectName: p.name, note, confidence: conf },
+          ],
+          totalQuotes: note.quotes.length,
+          maxConfidence: conf,
+        });
+      }
+    }
+  }
+  return [...map.values()].sort(
+    (a, b) =>
+      b.occurrences.length - a.occurrences.length ||
+      (CONFIDENCE_ORDER[b.maxConfidence] ?? 0) - (CONFIDENCE_ORDER[a.maxConfidence] ?? 0)
+  );
+}

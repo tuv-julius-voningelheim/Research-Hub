@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useMemo } from "react";
-import { byType, notesOf, slugIndex } from "@/lib/analytics";
+import { byType, codesIndex, lintVault, notesOf, slugIndex } from "@/lib/analytics";
+import CodesTab from "@/components/project/CodesTab";
+import QualityTab from "@/components/project/QualityTab";
 import { divisionOf, programOf, useHub } from "@/lib/store";
 import type { Note, NoteType, Vault } from "@/lib/types";
 import NoteCard from "@/components/project/NoteCard";
@@ -23,6 +25,8 @@ const TABS: { key: string; label: string; types: NoteType[] }[] = [
   { key: "recommendations", label: "Recommendations", types: ["recommendation"] },
   { key: "personas", label: "Personas", types: ["persona"] },
   { key: "interviews", label: "Interviews", types: ["interview", "archive"] },
+  { key: "codes", label: "Codes", types: [] },
+  { key: "quality", label: "Qualität", types: [] },
   { key: "files", label: "Files", types: [] },
 ];
 
@@ -124,6 +128,11 @@ function ProjectDetail() {
   );
 
   const types = useMemo(() => byType(vault), [vault]);
+  const codeCount = useMemo(() => codesIndex(vault).length, [vault]);
+  const lintCount = useMemo(
+    () => lintVault(vault).filter((f) => f.level !== "info").length,
+    [vault]
+  );
 
   if (!ready) return null;
   if (!project) {
@@ -222,31 +231,39 @@ function ProjectDetail() {
         />
       ) : (
         <>
-          {/* tabs */}
-          <div className="overflow-x-auto">
-            <div className="flex min-w-max gap-1 border-b border-neutral-200">
+          {/* tabs — iOS-style pills */}
+          <div className="overflow-x-auto pb-1">
+            <div className="flex min-w-max gap-1.5 rounded-2xl bg-neutral-200/50 p-1.5">
               {TABS.map((t) => {
                 const count =
-                  t.types.length > 0
-                    ? t.types.reduce((s, ty) => s + types[ty].length, 0)
-                    : undefined;
+                  t.key === "codes"
+                    ? codeCount
+                    : t.key === "quality"
+                      ? lintCount
+                      : t.types.length > 0
+                        ? t.types.reduce((s, ty) => s + types[ty].length, 0)
+                        : undefined;
                 const active = tab === t.key;
                 return (
                   <button
                     key={t.key}
                     type="button"
                     onClick={() => setQuery({ tab: t.key, note: null })}
-                    className={`cursor-pointer whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-bold transition-colors ${
+                    className={`cursor-pointer whitespace-nowrap rounded-xl px-3.5 py-2 text-sm font-bold transition-all ${
                       active
-                        ? "border-[#004a99] text-[#004a99]"
-                        : "border-transparent text-neutral-500 hover:text-neutral-800"
+                        ? "bg-white text-[#004a99] shadow-[0_1px_3px_rgba(16,24,40,0.12)]"
+                        : "text-neutral-500 hover:text-neutral-800"
                     }`}
                   >
                     {t.label}
                     {count !== undefined && count > 0 && (
                       <span
                         className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[11px] ${
-                          active ? "bg-blue-50 text-[#004a99]" : "bg-neutral-100 text-neutral-500"
+                          t.key === "quality"
+                            ? "bg-amber-100 text-amber-800"
+                            : active
+                              ? "bg-blue-50 text-[#004a99]"
+                              : "bg-neutral-100 text-neutral-500"
                         }`}
                       >
                         {count}
@@ -260,6 +277,8 @@ function ProjectDetail() {
 
           {/* tab content */}
           {tab === "overview" && <Overview vault={vault} onOpen={openNoteFn} />}
+          {tab === "codes" && <CodesTab vault={vault} onOpen={openNoteFn} />}
+          {tab === "quality" && <QualityTab vault={vault} onOpen={openNoteFn} />}
           {tab === "files" && <FilesTab vault={vault} onOpen={openNoteFn} />}
           {TABS.filter((t) => t.types.length > 0).map((t) => {
             if (tab !== t.key) return null;

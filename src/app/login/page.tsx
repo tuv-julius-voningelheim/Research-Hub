@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import TuvLogo from "@/components/TuvLogo";
 
 function LoginForm() {
   const searchParams = useSearchParams();
@@ -36,21 +37,15 @@ function LoginForm() {
   return (
     <form
       onSubmit={submit}
-      className="w-full max-w-sm rounded-2xl border border-neutral-200 bg-white p-8 shadow-sm"
+      className="anim-scale w-full max-w-sm rounded-3xl border border-neutral-200/70 bg-white p-8 shadow-[0_8px_30px_rgba(16,24,40,0.08)]"
     >
       <div className="mb-6 flex items-center gap-3">
-        <svg viewBox="0 0 40 40" width="40" height="40" aria-hidden>
-          <polygon points="12,2 28,2 38,12 38,28 28,38 12,38 2,28 2,12" fill="#001a4b" />
-          <text x="20" y="19" textAnchor="middle" fill="#ffffff" fontSize="10" fontWeight="800">
-            TÜV
-          </text>
-          <text x="20" y="30" textAnchor="middle" fill="#7fb2ff" fontSize="8" fontWeight="700">
-            SÜD
-          </text>
-        </svg>
+        <TuvLogo size={44} />
         <div>
-          <div className="text-lg font-extrabold text-neutral-900">Insight Hub</div>
-          <div className="text-xs text-neutral-500">UX Research · TÜV SÜD</div>
+          <div className="text-lg font-extrabold tracking-tight text-neutral-900">
+            Insight Hub
+          </div>
+          <div className="text-xs font-medium text-neutral-500">UX Research · TÜV SÜD</div>
         </div>
       </div>
 

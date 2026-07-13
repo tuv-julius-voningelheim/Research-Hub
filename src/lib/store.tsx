@@ -2,9 +2,12 @@
 
 // Client-side state with shared persistence:
 //  - "shared" mode: structure + vaults sync to /api/state and /api/vault
-//    (Vercel Blob) so the whole team sees the same workspace.
+//    (Vercel Blob) so the whole team sees the same workspace. Writes are
+//    optimistic-concurrency-checked via a rev counter: a 409 raises the
+//    `conflict` flag instead of silently overwriting foreign edits.
 //  - "local" fallback (no blob configured, e.g. plain `next dev`): IndexedDB.
 // IndexedDB additionally caches the last known state in both modes.
+// The workspace auto-refreshes on window focus and every 60s while idle.
 
 import { get, set } from "idb-keyval";
 import {
@@ -19,6 +22,7 @@ import {
 import type { Division, Program, Project, ProjectStatus, Vault } from "./types";
 
 const DB_KEY = "tuv-research-hub-v1";
+const REFRESH_INTERVAL_MS = 60_000;
 
 export interface HubState {
   divisions: Division[];
@@ -35,6 +39,9 @@ interface HubContextValue {
   ready: boolean;
   mode: HubMode;
   syncError: boolean;
+  /** someone else changed the shared workspace since our last load */
+  conflict: boolean;
+  reloadShared: () => Promise<void>;
   addDivision: (name: string, description?: string) => Division;
   updateDivision: (id: string, patch: Partial<Division>) => void;
   removeDivision: (id: string) => void;
@@ -59,7 +66,7 @@ function uid(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
 
-/** structure as stored server-side: vault payloads stripped, presence flagged */
+/** structure as sent server-side: vault payloads stripped, presence flagged */
 function stripVaults(s: HubState) {
   return {
     divisions: s.divisions,
@@ -71,52 +78,67 @@ function stripVaults(s: HubState) {
   };
 }
 
+async function fetchSharedState(): Promise<{ rev: number; state: HubState } | null> {
+  const res = await fetch("/api/state", { cache: "no-store" });
+  if (!res.ok) return null;
+  const structure = await res.json();
+  const projects: Project[] = await Promise.all(
+    (structure.projects ?? []).map(async (p: Project & { hasVault?: boolean }) => {
+      const { hasVault, ...rest } = p;
+      if (!hasVault) return rest as Project;
+      try {
+        const v = await fetch(`/api/vault?projectId=${encodeURIComponent(p.id)}`, {
+          cache: "no-store",
+        });
+        if (v.ok) return { ...rest, vault: await v.json() } as Project;
+      } catch {
+        // vault fetch failed — show project without analysis
+      }
+      return rest as Project;
+    })
+  );
+  return {
+    rev: typeof structure.rev === "number" ? structure.rev : 0,
+    state: {
+      divisions: structure.divisions ?? [],
+      programs: structure.programs ?? [],
+      projects,
+    },
+  };
+}
+
 export function HubProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<HubState>(EMPTY);
   const [ready, setReady] = useState(false);
   const [mode, setMode] = useState<HubMode>("loading");
   const [syncError, setSyncError] = useState(false);
+  const [conflict, setConflict] = useState(false);
+
   const stateRef = useRef(state);
   const modeRef = useRef(mode);
+  const conflictRef = useRef(conflict);
+  const revRef = useRef(0);
+  const pendingRef = useRef(false);
   const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   stateRef.current = state;
   modeRef.current = mode;
+  conflictRef.current = conflict;
+
+  const applyShared = useCallback((rev: number, loaded: HubState) => {
+    revRef.current = rev;
+    stateRef.current = loaded;
+    setState(loaded);
+    void set(DB_KEY, loaded);
+  }, []);
 
   // initial load: try shared workspace first, fall back to IndexedDB
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/state", { cache: "no-store" });
-        if (res.ok) {
-          const structure = await res.json();
-          const projects: Project[] = await Promise.all(
-            (structure.projects ?? []).map(
-              async (p: Project & { hasVault?: boolean }) => {
-                const { hasVault, ...rest } = p;
-                if (!hasVault) return rest as Project;
-                try {
-                  const v = await fetch(
-                    `/api/vault?projectId=${encodeURIComponent(p.id)}`,
-                    { cache: "no-store" }
-                  );
-                  if (v.ok) return { ...rest, vault: await v.json() } as Project;
-                } catch {
-                  // vault fetch failed — show project without analysis
-                }
-                return rest as Project;
-              }
-            )
-          );
-          if (cancelled) return;
-          const loaded: HubState = {
-            divisions: structure.divisions ?? [],
-            programs: structure.programs ?? [],
-            projects,
-          };
-          stateRef.current = loaded;
-          setState(loaded);
-          void set(DB_KEY, loaded);
+        const shared = await fetchSharedState();
+        if (shared && !cancelled) {
+          applyShared(shared.rev, shared.state);
           setMode("shared");
           setReady(true);
           return;
@@ -124,6 +146,7 @@ export function HubProvider({ children }: { children: ReactNode }) {
       } catch {
         // network/API unavailable — local mode
       }
+      if (cancelled) return;
       const saved = await get<HubState>(DB_KEY);
       if (cancelled) return;
       if (saved) {
@@ -136,21 +159,77 @@ export function HubProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [applyShared]);
+
+  const reloadShared = useCallback(async () => {
+    if (modeRef.current !== "shared") return;
+    try {
+      const shared = await fetchSharedState();
+      if (shared) {
+        applyShared(shared.rev, shared.state);
+        setConflict(false);
+        setSyncError(false);
+      }
+    } catch {
+      setSyncError(true);
+    }
+  }, [applyShared]);
+
+  // auto-refresh: window focus + gentle polling while idle
+  useEffect(() => {
+    if (mode !== "shared") return;
+
+    const check = async () => {
+      // don't refresh over unsaved local edits or an unresolved conflict
+      if (pendingRef.current || conflictRef.current) return;
+      try {
+        const res = await fetch("/api/state", { cache: "no-store" });
+        if (!res.ok) return;
+        const structure = await res.json();
+        const serverRev = typeof structure.rev === "number" ? structure.rev : 0;
+        if (serverRev !== revRef.current) await reloadShared();
+      } catch {
+        // transient — next tick will retry
+      }
+    };
+
+    const onFocus = () => void check();
+    window.addEventListener("focus", onFocus);
+    const timer = setInterval(() => void check(), REFRESH_INTERVAL_MS);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      clearInterval(timer);
+    };
+  }, [mode, reloadShared]);
 
   const pushStructure = useCallback(() => {
     if (modeRef.current !== "shared") return;
+    pendingRef.current = true;
     if (pushTimer.current) clearTimeout(pushTimer.current);
     pushTimer.current = setTimeout(async () => {
       try {
         const res = await fetch("/api/state", {
           method: "PUT",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify(stripVaults(stateRef.current)),
+          body: JSON.stringify({
+            baseRev: revRef.current,
+            ...stripVaults(stateRef.current),
+          }),
         });
-        setSyncError(!res.ok);
+        if (res.status === 409) {
+          setConflict(true);
+          setSyncError(false);
+        } else if (res.ok) {
+          const data = await res.json();
+          if (typeof data.rev === "number") revRef.current = data.rev;
+          setSyncError(false);
+        } else {
+          setSyncError(true);
+        }
       } catch {
         setSyncError(true);
+      } finally {
+        pendingRef.current = false;
       }
     }, 600);
   }, []);
@@ -315,6 +394,8 @@ export function HubProvider({ children }: { children: ReactNode }) {
         ready,
         mode,
         syncError,
+        conflict,
+        reloadShared,
         addDivision,
         updateDivision,
         removeDivision,

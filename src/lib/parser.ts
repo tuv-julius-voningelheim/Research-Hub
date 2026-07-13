@@ -78,7 +78,7 @@ function extractQuotes(body: string): Quote[] {
     // meaning-unit code on the following non-quote line: "Code: #code/xyz"
     let code: string | undefined;
     for (let j = i + 1; j < Math.min(i + 3, lines.length); j++) {
-      const cm = lines[j].match(/^Code:\s*(#code\/[\w./-]+)/i);
+      const cm = lines[j].match(/^Code:\s*(#code\/[\p{L}\p{N}./_-]+)/iu);
       if (cm) {
         code = cm[1];
         break;
@@ -94,7 +94,8 @@ function extractQuotes(body: string): Quote[] {
 
 function extractCodes(body: string): string[] {
   const set = new Set<string>();
-  const re = /#code\/[\w./-]+/g;
+  // \p{L}\p{N} instead of \w so umlauts (plattformlösung, kanäle) survive
+  const re = /#code\/[\p{L}\p{N}./_-]+/gu;
   let m: RegExpExecArray | null;
   while ((m = re.exec(body))) set.add(m[0]);
   return [...set];
@@ -177,7 +178,9 @@ export async function parseVaultZip(file: File | Blob, fileName: string): Promis
   });
 
   for (const entry of entries) {
-    const raw = await entry.async("string");
+    // normalize CRLF/CR line endings — vault files come from mixed tooling,
+    // and stray \r breaks heading/quote detection downstream
+    const raw = (await entry.async("string")).replace(/\r\n?/g, "\n");
     // normalize path: drop a shared top-level folder later; keep as-is for now
     const path = entry.name.replace(/\\/g, "/");
     const parts = path.split("/");

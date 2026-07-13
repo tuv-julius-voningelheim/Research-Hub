@@ -75,8 +75,8 @@ export default function NoteDrawer({
 
   return (
     <div className="fixed inset-0 z-50" role="dialog" aria-modal="true">
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-      <div className="absolute inset-y-0 right-0 flex w-full max-w-2xl flex-col bg-white shadow-2xl">
+      <div className="anim-fade absolute inset-0 bg-black/25 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="anim-slide absolute inset-y-0 right-0 flex w-full max-w-2xl flex-col rounded-l-3xl bg-white shadow-2xl">
         {/* header */}
         <div className="border-b border-neutral-200 px-6 py-4">
           <div className="flex items-start justify-between gap-3">
@@ -118,7 +118,8 @@ export default function NoteDrawer({
             </pre>
           ) : (
             <Markdown
-              text={note.body}
+              // drawer header already shows the title — drop the leading H1
+              text={note.body.replace(/^\s*#\s+[^\n]*\n/, "")}
               resolve={(t) => idx.has(t.toLowerCase())}
               onNavigate={(t) => {
                 const target = idx.get(t.toLowerCase());

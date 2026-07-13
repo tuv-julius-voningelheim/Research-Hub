@@ -4,42 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { useHub } from "@/lib/store";
-
-function TuvLogo() {
-  // Hexagonal mark inspired by the TÜV SÜD octagon shape (neutral re-creation)
-  return (
-    <div className="flex h-9 w-9 items-center justify-center">
-      <svg viewBox="0 0 40 40" width="36" height="36" aria-hidden>
-        <polygon
-          points="12,2 28,2 38,12 38,28 28,38 12,38 2,28 2,12"
-          fill="#001a4b"
-        />
-        <text
-          x="20"
-          y="19"
-          textAnchor="middle"
-          fill="#ffffff"
-          fontSize="10"
-          fontWeight="800"
-          fontFamily="inherit"
-        >
-          TÜV
-        </text>
-        <text
-          x="20"
-          y="30"
-          textAnchor="middle"
-          fill="#7fb2ff"
-          fontSize="8"
-          fontWeight="700"
-          fontFamily="inherit"
-        >
-          SÜD
-        </text>
-      </svg>
-    </div>
-  );
-}
+import TuvLogo from "@/components/TuvLogo";
 
 const NAV: { href: string; label: string; icon: ReactNode }[] = [
   {
@@ -129,14 +94,14 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 flex w-60 flex-col border-r border-neutral-200 bg-white">
-      <div className="flex items-center gap-2.5 border-b border-neutral-200 px-4 py-4">
-        <TuvLogo />
+    <aside className="fixed inset-y-0 left-0 z-40 flex w-60 flex-col border-r border-neutral-200/70 bg-white/85 backdrop-blur-xl">
+      <div className="flex items-center gap-3 px-5 py-5">
+        <TuvLogo size={38} />
         <div>
-          <div className="text-[15px] font-extrabold leading-tight text-neutral-900">
+          <div className="text-[15px] font-extrabold leading-tight tracking-tight text-neutral-900">
             Insight Hub
           </div>
-          <div className="text-xs text-neutral-500">UX Research</div>
+          <div className="text-xs font-medium text-neutral-500">UX Research</div>
         </div>
       </div>
 
@@ -154,13 +119,13 @@ export default function Sidebar() {
               <li key={item.href}>
                 <Link
                   href={item.href}
-                  className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+                  className={`flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold transition-all ${
                     active
-                      ? "bg-blue-50 text-[#004a99]"
-                      : "text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900"
+                      ? "bg-gradient-to-b from-[#0a5cd5] to-[#004a99] text-white shadow-[0_2px_6px_rgba(0,74,153,0.35)]"
+                      : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
                   }`}
                 >
-                  <span className={active ? "text-[#004a99]" : "text-neutral-400"}>
+                  <span className={active ? "text-white/90" : "text-neutral-400"}>
                     {item.icon}
                   </span>
                   {item.label}

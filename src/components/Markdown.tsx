@@ -21,7 +21,7 @@ function renderInline(
   const out: ReactNode[] = [];
   // tokenize wikilinks, bold, italics, inline code, code-tags
   const re =
-    /\[\[([^\]|#]+)(?:[|#]([^\]]*))?\]\]|\*\*([^*]+)\*\*|`([^`]+)`|(#code\/[\w./-]+)/g;
+    /\[\[([^\]|#]+)(?:[|#]([^\]]*))?\]\]|\*\*([^*]+)\*\*|`([^`]+)`|(#code\/[\p{L}\p{N}./_-]+)/gu;
   let last = 0;
   let m: RegExpExecArray | null;
   let key = 0;
@@ -72,7 +72,9 @@ function renderInline(
 }
 
 export default function Markdown({ text, resolve, onNavigate }: MarkdownProps) {
-  const lines = text.split("\n");
+  // defensive: vaults stored before CRLF normalization still contain \r,
+  // which breaks `.*$` matching in JS — strip it here as well
+  const lines = text.replace(/\r\n?/g, "\n").split("\n");
   const blocks: ReactNode[] = [];
   let i = 0;
   let key = 0;
@@ -122,7 +124,7 @@ export default function Markdown({ text, resolve, onNavigate }: MarkdownProps) {
       }
       let code: string | undefined;
       if (i < lines.length) {
-        const cm = lines[i].match(/^Code:\s*(#code\/[\w./-]+)/i);
+        const cm = lines[i].match(/^Code:\s*(#code\/[\p{L}\p{N}./_-]+)/iu);
         if (cm) {
           code = cm[1];
           i++;

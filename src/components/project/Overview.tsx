@@ -4,14 +4,18 @@
 // confidence × evidence), distributions, traceability and open questions.
 // Everything is computed from the parsed vault — no AI.
 
-import { useMemo } from "react";
+import { Fragment, useMemo } from "react";
 import {
+  MATRIX_CONFIDENCES,
+  MATRIX_SEVERITIES,
   byType,
   confidenceDistribution,
+  lintVault,
   needCategoryDistribution,
   openQuestions,
   rankPainPoints,
   recTraces,
+  severityConfidenceMatrix,
   severityDistribution,
   themeSummaries,
   totalQuotes,
@@ -86,6 +90,11 @@ export default function Overview({
   const themeConf = useMemo(() => confidenceDistribution(vault, "theme"), [vault]);
   const needCats = useMemo(() => needCategoryDistribution(vault), [vault]);
   const quotes = useMemo(() => totalQuotes(vault), [vault]);
+  const matrix = useMemo(() => severityConfidenceMatrix(vault), [vault]);
+  const lint = useMemo(() => lintVault(vault), [vault]);
+  const lintErrors = lint.filter((f) => f.level === "error").length;
+  const lintWarnings = lint.filter((f) => f.level === "warning").length;
+  const matrixMax = Math.max(1, ...[...matrix.values()].map((v) => v.length));
 
   const maxSeverity = Math.max(1, ...severityDist.map((d) => d.count));
   const maxNeed = Math.max(1, ...needCats.map((d) => d.count));
@@ -187,6 +196,84 @@ export default function Overview({
           </Card>
         )}
       </div>
+
+      {/* severity × confidence matrix (heatmap, sequential blue) */}
+      {matrix.size > 0 && (
+        <Card className="p-5">
+          <h3 className="mb-1 text-sm font-bold text-neutral-900">
+            Risiko-Matrix: Severity × Confidence
+          </h3>
+          <p className="mb-4 text-xs text-neutral-500">
+            Pain Points — oben links = dringend UND gut belegt.
+          </p>
+          <div className="overflow-x-auto">
+            <div
+              className="grid min-w-[560px] gap-1.5"
+              style={{ gridTemplateColumns: `90px repeat(${MATRIX_CONFIDENCES.length}, 1fr)` }}
+            >
+              <div />
+              {MATRIX_CONFIDENCES.map((c) => (
+                <div
+                  key={c}
+                  className="pb-1 text-center text-xs font-bold capitalize text-neutral-500"
+                >
+                  Confidence {c}
+                </div>
+              ))}
+              {MATRIX_SEVERITIES.map((sev) => (
+                <Fragment key={sev}>
+                  <div className="flex items-center text-xs font-bold capitalize text-neutral-500">
+                    {sev}
+                  </div>
+                  {MATRIX_CONFIDENCES.map((conf) => {
+                    const notes = matrix.get(`${sev}:${conf}`) ?? [];
+                    const intensity = notes.length / matrixMax;
+                    // sequential blue ramp; text switches to white on dark cells
+                    const bg =
+                      notes.length === 0
+                        ? "#f4f5f7"
+                        : intensity > 0.66
+                          ? "#1c5cab"
+                          : intensity > 0.33
+                            ? "#5598e7"
+                            : "#b7d3f6";
+                    const fg = intensity > 0.66 && notes.length > 0 ? "#fff" : "#1a2b45";
+                    return (
+                      <button
+                        key={conf}
+                        type="button"
+                        disabled={notes.length === 0}
+                        onClick={() => notes[0] && onOpen(notes[0])}
+                        title={notes.map((n) => n.title).join("\n")}
+                        className={`flex h-14 items-center justify-center rounded-xl text-base font-extrabold transition-transform ${
+                          notes.length > 0 ? "cursor-pointer hover:scale-[1.03]" : ""
+                        }`}
+                        style={{ background: bg, color: fg }}
+                      >
+                        {notes.length > 0 ? notes.length : ""}
+                      </button>
+                    );
+                  })}
+                </Fragment>
+              ))}
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* quality summary */}
+      {(lintErrors > 0 || lintWarnings > 0) && (
+        <Card className="flex items-center gap-3 border-amber-200 bg-amber-50/50 p-4">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#92600a" strokeWidth="2">
+            <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01" />
+          </svg>
+          <span className="flex-1 text-sm font-semibold text-amber-900">
+            Qualitätscheck: {lintErrors} {lintErrors === 1 ? "Verstoß" : "Verstöße"} und{" "}
+            {lintWarnings} {lintWarnings === 1 ? "Warnung" : "Warnungen"} gegen die
+            SOP-Regeln gefunden.
+          </span>
+        </Card>
+      )}
 
       {/* theme map */}
       {themes.length > 0 && (
