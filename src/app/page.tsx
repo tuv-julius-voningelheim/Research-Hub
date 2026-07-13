@@ -75,22 +75,21 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
       {/* hero */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#0b2a6b] via-[#0b1f4e] to-[#091634] px-8 py-9 text-white">
-        <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-white/5" />
+      <div className="rounded-2xl bg-[#0e2f5f] px-8 py-8 text-white">
         <div className="flex flex-wrap items-center justify-between gap-6">
           <div className="max-w-xl">
-            <h1 className="text-3xl font-extrabold tracking-tight">
+            <h1 className="text-[26px] font-bold tracking-tight">
               UX Research Insight Hub
             </h1>
-            <p className="mt-2 text-sm leading-relaxed text-blue-100">
-              Lade Second-Brain-Exporte (ZIP) hoch — Themes, Pain Points, Needs,
-              Insights und Empfehlungen werden programmatisch ausgewertet und als
-              gemeinsame, nachvollziehbare Erkenntnisse aufbereitet.
+            <p className="mt-2 text-sm leading-relaxed text-blue-100/90">
+              Second-Brain-Exporte hochladen — Themes, Pain Points, Needs, Insights
+              und Empfehlungen werden programmatisch ausgewertet und als gemeinsame,
+              nachvollziehbare Erkenntnisse aufbereitet.
             </p>
           </div>
           <Link
             href="/projects"
-            className="flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-bold text-[#0b1f4e] hover:bg-blue-50"
+            className="flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-[#0e2f5f] transition-colors hover:bg-blue-50"
           >
             {FolderIcon}
             View projects

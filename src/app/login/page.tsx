@@ -1,8 +1,8 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import TuvLogo from "@/components/TuvLogo";
 
 function LoginForm() {
   const searchParams = useSearchParams();
@@ -40,7 +40,7 @@ function LoginForm() {
       className="anim-scale w-full max-w-sm rounded-3xl border border-neutral-200/70 bg-white p-8 shadow-[0_8px_30px_rgba(16,24,40,0.08)]"
     >
       <div className="mb-6 flex items-center gap-3">
-        <TuvLogo size={44} />
+        <Image src="/tuv-sud-logo.png" alt="TÜV SÜD" width={44} height={44} priority />
         <div>
           <div className="text-lg font-extrabold tracking-tight text-neutral-900">
             Insight Hub

@@ -19,6 +19,13 @@ export interface Program {
   createdAt: number;
 }
 
+export interface NextStep {
+  id: string;
+  text: string;
+  done: boolean;
+  createdAt: number;
+}
+
 export interface Project {
   id: string;
   programId: string;
@@ -28,6 +35,16 @@ export interface Project {
   method?: string;
   createdAt: number;
   vault?: Vault;
+  /** free-form team notes (markdown-ish plain text) */
+  notes?: string;
+  nextSteps?: NextStep[];
+}
+
+/** read-only share link for one project's results */
+export interface ShareLink {
+  token: string;
+  projectId: string;
+  createdAt: number;
 }
 
 // ---- Parsed vault ----

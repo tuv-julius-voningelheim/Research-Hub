@@ -19,7 +19,15 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { Division, Program, Project, ProjectStatus, Vault } from "./types";
+import type {
+  Division,
+  NextStep,
+  Program,
+  Project,
+  ProjectStatus,
+  ShareLink,
+  Vault,
+} from "./types";
 
 const DB_KEY = "tuv-research-hub-v1";
 const REFRESH_INTERVAL_MS = 60_000;
@@ -28,11 +36,12 @@ export interface HubState {
   divisions: Division[];
   programs: Program[];
   projects: Project[];
+  shares?: ShareLink[];
 }
 
 export type HubMode = "loading" | "local" | "shared";
 
-const EMPTY: HubState = { divisions: [], programs: [], projects: [] };
+const EMPTY: HubState = { divisions: [], programs: [], projects: [], shares: [] };
 
 interface HubContextValue {
   state: HubState;
@@ -58,6 +67,12 @@ interface HubContextValue {
   updateProject: (id: string, patch: Partial<Project>) => void;
   removeProject: (id: string) => void;
   attachVault: (projectId: string, vault: Vault) => void;
+  addNextStep: (projectId: string, text: string) => void;
+  toggleNextStep: (projectId: string, stepId: string) => void;
+  removeNextStep: (projectId: string, stepId: string) => void;
+  setNotes: (projectId: string, notes: string) => void;
+  createShare: (projectId: string) => ShareLink;
+  removeShare: (token: string) => void;
 }
 
 const HubContext = createContext<HubContextValue | null>(null);
@@ -71,6 +86,7 @@ function stripVaults(s: HubState) {
   return {
     divisions: s.divisions,
     programs: s.programs,
+    shares: s.shares ?? [],
     projects: s.projects.map(({ vault, ...rest }) => ({
       ...rest,
       hasVault: !!vault,
@@ -103,6 +119,7 @@ async function fetchSharedState(): Promise<{ rev: number; state: HubState } | nu
       divisions: structure.divisions ?? [],
       programs: structure.programs ?? [],
       projects,
+      shares: structure.shares ?? [],
     },
   };
 }
@@ -202,35 +219,47 @@ export function HubProvider({ children }: { children: ReactNode }) {
     };
   }, [mode, reloadShared]);
 
+  // serialize pushes: a new push waits for the in-flight one, so our own
+  // rapid edits can't race each other into a spurious 409
+  const inFlightRef = useRef<Promise<void> | null>(null);
+
   const pushStructure = useCallback(() => {
     if (modeRef.current !== "shared") return;
     pendingRef.current = true;
     if (pushTimer.current) clearTimeout(pushTimer.current);
-    pushTimer.current = setTimeout(async () => {
-      try {
-        const res = await fetch("/api/state", {
-          method: "PUT",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            baseRev: revRef.current,
-            ...stripVaults(stateRef.current),
-          }),
-        });
-        if (res.status === 409) {
-          setConflict(true);
-          setSyncError(false);
-        } else if (res.ok) {
-          const data = await res.json();
-          if (typeof data.rev === "number") revRef.current = data.rev;
-          setSyncError(false);
-        } else {
+    pushTimer.current = setTimeout(() => {
+      const run = async () => {
+        if (inFlightRef.current) await inFlightRef.current.catch(() => {});
+        try {
+          const res = await fetch("/api/state", {
+            method: "PUT",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              baseRev: revRef.current,
+              ...stripVaults(stateRef.current),
+            }),
+          });
+          if (res.status === 409) {
+            setConflict(true);
+            setSyncError(false);
+          } else if (res.ok) {
+            const data = await res.json();
+            if (typeof data.rev === "number") revRef.current = data.rev;
+            setSyncError(false);
+          } else {
+            setSyncError(true);
+          }
+        } catch {
           setSyncError(true);
+        } finally {
+          pendingRef.current = false;
         }
-      } catch {
-        setSyncError(true);
-      } finally {
-        pendingRef.current = false;
-      }
+      };
+      const p = run();
+      inFlightRef.current = p;
+      void p.finally(() => {
+        if (inFlightRef.current === p) inFlightRef.current = null;
+      });
     }, 600);
   }, []);
 
@@ -387,6 +416,79 @@ export function HubProvider({ children }: { children: ReactNode }) {
     [updateProject, pushVault]
   );
 
+  const patchProject = useCallback(
+    (projectId: string, fn: (p: Project) => Project) => {
+      const s = stateRef.current;
+      persist({
+        ...s,
+        projects: s.projects.map((p) => (p.id === projectId ? fn(p) : p)),
+      });
+    },
+    [persist]
+  );
+
+  const addNextStep = useCallback(
+    (projectId: string, text: string) => {
+      const step: NextStep = { id: uid(), text, done: false, createdAt: Date.now() };
+      patchProject(projectId, (p) => ({
+        ...p,
+        nextSteps: [...(p.nextSteps ?? []), step],
+      }));
+    },
+    [patchProject]
+  );
+
+  const toggleNextStep = useCallback(
+    (projectId: string, stepId: string) => {
+      patchProject(projectId, (p) => ({
+        ...p,
+        nextSteps: (p.nextSteps ?? []).map((st) =>
+          st.id === stepId ? { ...st, done: !st.done } : st
+        ),
+      }));
+    },
+    [patchProject]
+  );
+
+  const removeNextStep = useCallback(
+    (projectId: string, stepId: string) => {
+      patchProject(projectId, (p) => ({
+        ...p,
+        nextSteps: (p.nextSteps ?? []).filter((st) => st.id !== stepId),
+      }));
+    },
+    [patchProject]
+  );
+
+  const setNotes = useCallback(
+    (projectId: string, notes: string) => {
+      patchProject(projectId, (p) => ({ ...p, notes }));
+    },
+    [patchProject]
+  );
+
+  const createShare = useCallback(
+    (projectId: string) => {
+      const share: ShareLink = {
+        token: uid() + uid(),
+        projectId,
+        createdAt: Date.now(),
+      };
+      const s = stateRef.current;
+      persist({ ...s, shares: [...(s.shares ?? []), share] });
+      return share;
+    },
+    [persist]
+  );
+
+  const removeShare = useCallback(
+    (token: string) => {
+      const s = stateRef.current;
+      persist({ ...s, shares: (s.shares ?? []).filter((sh) => sh.token !== token) });
+    },
+    [persist]
+  );
+
   return (
     <HubContext.Provider
       value={{
@@ -406,6 +508,12 @@ export function HubProvider({ children }: { children: ReactNode }) {
         updateProject,
         removeProject,
         attachVault,
+        addNextStep,
+        toggleNextStep,
+        removeNextStep,
+        setNotes,
+        createShare,
+        removeShare,
       }}
     >
       {children}

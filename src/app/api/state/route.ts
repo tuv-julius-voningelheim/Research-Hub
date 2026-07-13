@@ -1,17 +1,21 @@
-// Shared workspace structure (divisions/programs/projects without vaults),
-// stored as one JSON blob in Vercel Blob. Vault payloads live in /api/vault.
+// Shared workspace structure (divisions/programs/projects without vaults).
+// Stored as versioned JSON blobs (see blobStore.ts — avoids CDN staleness).
 //
-// Concurrency: the stored document carries a monotonically increasing `rev`.
+// Concurrency: the document carries a monotonically increasing `rev`.
 // PUT must send the `baseRev` it was based on; a mismatch returns 409 so the
 // client can surface "workspace changed elsewhere" instead of silently
 // overwriting someone else's edits (optimistic concurrency, small-team scale).
 
-import { list, put } from "@vercel/blob";
+import {
+  STATE_DIR,
+  STATE_LEGACY,
+  readLatestJson,
+  writeVersionedJson,
+} from "@/lib/blobStore";
 
 export const dynamic = "force-dynamic";
 
-const PATH = "state.json";
-const EMPTY = { rev: 0, divisions: [], programs: [], projects: [] };
+const EMPTY = { rev: 0, divisions: [], programs: [], projects: [], shares: [] };
 
 function notConfigured() {
   return new Response(JSON.stringify({ error: "blob-not-configured" }), {
@@ -20,20 +24,14 @@ function notConfigured() {
   });
 }
 
-async function readCurrent(): Promise<{
-  rev: number;
-  divisions: unknown[];
-  programs: unknown[];
-  projects: unknown[];
-}> {
-  const { blobs } = await list({ prefix: PATH });
-  const blob = blobs.find((b) => b.pathname === PATH);
-  if (!blob) return EMPTY;
-  // cache-buster: blob CDN caches aggressively, query param busts it
-  const res = await fetch(`${blob.url}?ts=${Date.now()}`, { cache: "no-store" });
-  if (!res.ok) return EMPTY;
-  const data = await res.json();
-  return { ...EMPTY, ...data, rev: typeof data.rev === "number" ? data.rev : 0 };
+async function readCurrent() {
+  const data = await readLatestJson(STATE_DIR, STATE_LEGACY);
+  if (!data) return EMPTY;
+  return {
+    ...EMPTY,
+    ...data,
+    rev: typeof data.rev === "number" ? data.rev : 0,
+  };
 }
 
 export async function GET() {
@@ -67,13 +65,9 @@ export async function PUT(req: Request) {
     divisions: body.divisions,
     programs: body.programs,
     projects: body.projects,
+    shares: Array.isArray(body.shares) ? body.shares : [],
   };
-  await put(PATH, JSON.stringify(next), {
-    access: "public",
-    addRandomSuffix: false,
-    allowOverwrite: true,
-    contentType: "application/json",
-  });
+  await writeVersionedJson(STATE_DIR, next);
   return Response.json(
     { ok: true, rev: next.rev },
     { headers: { "cache-control": "no-store" } }

@@ -1,12 +1,15 @@
-// Parsed vault payload per project, one JSON blob each:  vaults/<projectId>.json
+// Parsed vault payload per project, stored as versioned JSON blobs
+// (see blobStore.ts — avoids CDN staleness on overwrite).
 
-import { del, list, put } from "@vercel/blob";
+import {
+  deleteVersioned,
+  readLatestJson,
+  vaultDir,
+  vaultLegacy,
+  writeVersionedJson,
+} from "@/lib/blobStore";
 
 export const dynamic = "force-dynamic";
-
-function pathFor(projectId: string) {
-  return `vaults/${projectId}.json`;
-}
 
 function projectIdFrom(req: Request): string | null {
   const id = new URL(req.url).searchParams.get("projectId");
@@ -24,14 +27,10 @@ export async function GET(req: Request) {
   if (!process.env.BLOB_READ_WRITE_TOKEN) return notConfigured();
   const id = projectIdFrom(req);
   if (!id) return new Response("projectId required", { status: 400 });
-  const path = pathFor(id);
-  const { blobs } = await list({ prefix: path });
-  const blob = blobs.find((b) => b.pathname === path);
-  if (!blob) return new Response(null, { status: 404 });
-  const res = await fetch(`${blob.url}?ts=${Date.now()}`, { cache: "no-store" });
-  if (!res.ok) return new Response(null, { status: 404 });
-  return new Response(res.body, {
-    headers: { "content-type": "application/json", "cache-control": "no-store" },
+  const data = await readLatestJson(vaultDir(id), vaultLegacy(id));
+  if (!data) return new Response(null, { status: 404 });
+  return Response.json(data, {
+    headers: { "cache-control": "no-store" },
   });
 }
 
@@ -39,17 +38,11 @@ export async function PUT(req: Request) {
   if (!process.env.BLOB_READ_WRITE_TOKEN) return notConfigured();
   const id = projectIdFrom(req);
   if (!id) return new Response("projectId required", { status: 400 });
-  const body = await req.text();
-  const parsed = JSON.parse(body);
+  const parsed = await req.json();
   if (!Array.isArray(parsed.notes)) {
     return new Response("invalid vault", { status: 400 });
   }
-  await put(pathFor(id), body, {
-    access: "public",
-    addRandomSuffix: false,
-    allowOverwrite: true,
-    contentType: "application/json",
-  });
+  await writeVersionedJson(vaultDir(id), parsed);
   return new Response(null, { status: 204 });
 }
 
@@ -57,9 +50,6 @@ export async function DELETE(req: Request) {
   if (!process.env.BLOB_READ_WRITE_TOKEN) return notConfigured();
   const id = projectIdFrom(req);
   if (!id) return new Response("projectId required", { status: 400 });
-  const path = pathFor(id);
-  const { blobs } = await list({ prefix: path });
-  const blob = blobs.find((b) => b.pathname === path);
-  if (blob) await del(blob.url);
+  await deleteVersioned(vaultDir(id), vaultLegacy(id));
   return new Response(null, { status: 204 });
 }

@@ -36,6 +36,8 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // everything except the login page/endpoint and Next.js internals
-  matcher: ["/((?!login|api/login|_next/static|_next/image|icon.svg).*)"],
+  // everything except: login, public share links, Next.js internals and the logo
+  matcher: [
+    "/((?!login|api/login|share|api/share|_next/static|_next/image|icon.png|tuv-sud-logo.png).*)",
+  ],
 };

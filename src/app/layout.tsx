@@ -1,14 +1,12 @@
 import type { Metadata } from "next";
-import { Archivo } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
-import ConflictBanner from "@/components/ConflictBanner";
-import Sidebar from "@/components/Sidebar";
+import LayoutShell from "@/components/LayoutShell";
 import { HubProvider } from "@/lib/store";
 
-const sans = Archivo({
+const sans = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
-  weight: ["400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
@@ -24,11 +22,7 @@ export default function RootLayout({
     <html lang="de">
       <body className={`${sans.variable} antialiased`}>
         <HubProvider>
-          <ConflictBanner />
-          <Sidebar />
-          <main className="ml-60 min-h-screen px-8 py-8">
-            <div className="mx-auto max-w-6xl">{children}</div>
-          </main>
+          <LayoutShell>{children}</LayoutShell>
         </HubProvider>
       </body>
     </html>

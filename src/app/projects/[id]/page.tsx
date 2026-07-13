@@ -2,10 +2,13 @@
 
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useMemo } from "react";
+import { Suspense, useCallback, useMemo, useState } from "react";
 import { byType, codesIndex, lintVault, notesOf, slugIndex } from "@/lib/analytics";
+import { buildMarkdownReport, downloadTextFile } from "@/lib/export";
 import CodesTab from "@/components/project/CodesTab";
+import NotesTab from "@/components/project/NotesTab";
 import QualityTab from "@/components/project/QualityTab";
+import { Modal, btnSecondary, inputCls } from "@/components/ui";
 import { divisionOf, programOf, useHub } from "@/lib/store";
 import type { Note, NoteType, Vault } from "@/lib/types";
 import NoteCard from "@/components/project/NoteCard";
@@ -27,6 +30,7 @@ const TABS: { key: string; label: string; types: NoteType[] }[] = [
   { key: "interviews", label: "Interviews", types: ["interview", "archive"] },
   { key: "codes", label: "Codes", types: [] },
   { key: "quality", label: "Qualität", types: [] },
+  { key: "notes", label: "Notizen", types: [] },
   { key: "files", label: "Files", types: [] },
 ];
 
@@ -101,7 +105,10 @@ function ProjectDetail() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { state, ready, attachVault, updateProject } = useHub();
+  const { state, ready, mode, attachVault, updateProject, createShare, removeShare } =
+    useHub();
+  const [shareOpen, setShareOpen] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
 
   const project = state.projects.find((p) => p.id === params.id);
   const vault = project?.vault;
@@ -169,17 +176,53 @@ function ProjectDetail() {
       <Card className="p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-extrabold text-neutral-900">{project.name}</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-neutral-900">
+              {project.name}
+            </h1>
             <StatusBadge status={project.status} />
           </div>
-          {vault && (
-            <div className="w-72">
-              <UploadZone
-                compact
-                onParsed={(v) => attachVault(project.id, v)}
-              />
-            </div>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {mode === "shared" && (
+              <button
+                type="button"
+                onClick={() => setShareOpen(true)}
+                className={btnSecondary}
+              >
+                <span className="inline-flex items-center gap-1.5">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+                    <path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4" />
+                  </svg>
+                  Teilen
+                </span>
+              </button>
+            )}
+            {vault && (
+              <>
+                <button
+                  type="button"
+                  onClick={() =>
+                    downloadTextFile(
+                      `${project.name.replace(/[^\w-]+/g, "_")}_report.md`,
+                      buildMarkdownReport(project, {
+                        program: program?.name,
+                        division: division?.name,
+                      })
+                    )
+                  }
+                  className={btnSecondary}
+                >
+                  Markdown
+                </button>
+                <Link
+                  href={`/projects/${project.id}/report`}
+                  className="cursor-pointer rounded-lg bg-[#0057b8] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#004a99]"
+                >
+                  PDF-Report
+                </Link>
+              </>
+            )}
+          </div>
         </div>
         {project.description && (
           <p className="mt-1 text-sm text-neutral-500">{project.description}</p>
@@ -221,49 +264,52 @@ function ProjectDetail() {
       </Card>
 
       {!vault ? (
-        <UploadZone
-          onParsed={(v) => {
-            attachVault(project.id, v);
-            if (project.status === "planned") {
-              updateProject(project.id, { status: "in-analysis" });
-            }
-          }}
-        />
+        <>
+          <UploadZone
+            onParsed={(v) => {
+              attachVault(project.id, v);
+              if (project.status === "planned") {
+                updateProject(project.id, { status: "in-analysis" });
+              }
+            }}
+          />
+          <NotesTab project={project} />
+        </>
       ) : (
         <>
-          {/* tabs — iOS-style pills */}
-          <div className="overflow-x-auto pb-1">
-            <div className="flex min-w-max gap-1.5 rounded-2xl bg-neutral-200/50 p-1.5">
+          {/* tabs */}
+          <div className="overflow-x-auto">
+            <div className="flex min-w-max gap-0.5 border-b border-neutral-200">
               {TABS.map((t) => {
                 const count =
                   t.key === "codes"
                     ? codeCount
                     : t.key === "quality"
                       ? lintCount
-                      : t.types.length > 0
-                        ? t.types.reduce((s, ty) => s + types[ty].length, 0)
-                        : undefined;
+                      : t.key === "notes"
+                        ? (project.nextSteps?.filter((s) => !s.done).length ?? 0)
+                        : t.types.length > 0
+                          ? t.types.reduce((s, ty) => s + types[ty].length, 0)
+                          : undefined;
                 const active = tab === t.key;
                 return (
                   <button
                     key={t.key}
                     type="button"
                     onClick={() => setQuery({ tab: t.key, note: null })}
-                    className={`cursor-pointer whitespace-nowrap rounded-xl px-3.5 py-2 text-sm font-bold transition-all ${
+                    className={`-mb-px cursor-pointer whitespace-nowrap border-b-2 px-3.5 py-2.5 text-sm font-semibold transition-colors ${
                       active
-                        ? "bg-white text-[#004a99] shadow-[0_1px_3px_rgba(16,24,40,0.12)]"
-                        : "text-neutral-500 hover:text-neutral-800"
+                        ? "border-[#0057b8] text-[#0057b8]"
+                        : "border-transparent text-neutral-500 hover:text-neutral-800"
                     }`}
                   >
                     {t.label}
                     {count !== undefined && count > 0 && (
                       <span
-                        className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[11px] ${
+                        className={`ml-1.5 text-xs font-medium ${
                           t.key === "quality"
-                            ? "bg-amber-100 text-amber-800"
-                            : active
-                              ? "bg-blue-50 text-[#004a99]"
-                              : "bg-neutral-100 text-neutral-500"
+                            ? "rounded-full bg-amber-100 px-1.5 py-0.5 text-amber-800"
+                            : "text-neutral-400"
                         }`}
                       >
                         {count}
@@ -279,7 +325,13 @@ function ProjectDetail() {
           {tab === "overview" && <Overview vault={vault} onOpen={openNoteFn} />}
           {tab === "codes" && <CodesTab vault={vault} onOpen={openNoteFn} />}
           {tab === "quality" && <QualityTab vault={vault} onOpen={openNoteFn} />}
-          {tab === "files" && <FilesTab vault={vault} onOpen={openNoteFn} />}
+          {tab === "notes" && <NotesTab project={project} />}
+          {tab === "files" && (
+            <div className="space-y-4">
+              <UploadZone compact onParsed={(v) => attachVault(project.id, v)} />
+              <FilesTab vault={vault} onOpen={openNoteFn} />
+            </div>
+          )}
           {TABS.filter((t) => t.types.length > 0).map((t) => {
             if (tab !== t.key) return null;
             const notes = t.types.flatMap((ty) => types[ty]);
@@ -312,6 +364,75 @@ function ProjectDetail() {
           onNavigate={(slug) => setQuery({ note: slug })}
           onClose={() => setQuery({ note: null })}
         />
+      )}
+
+      {shareOpen && (
+        <Modal title="Read-only-Link teilen" onClose={() => setShareOpen(false)}>
+          <p className="mb-4 text-sm leading-relaxed text-neutral-600">
+            Wer den Link hat, sieht nur die Ergebnisse dieses Projekts —
+            schreibgeschützt, ohne Zugriff auf den Rest des Hubs. Links lassen sich
+            jederzeit widerrufen.
+          </p>
+
+          {(state.shares ?? []).filter((s) => s.projectId === project.id).length === 0 ? (
+            <p className="mb-4 rounded-lg bg-neutral-50 px-3 py-4 text-center text-sm text-neutral-400 ring-1 ring-neutral-200">
+              Noch kein Link erstellt.
+            </p>
+          ) : (
+            <ul className="mb-4 space-y-2">
+              {(state.shares ?? [])
+                .filter((s) => s.projectId === project.id)
+                .map((s) => {
+                  const url = `${window.location.origin}/share/${s.token}`;
+                  return (
+                    <li key={s.token} className="flex items-center gap-2">
+                      <input
+                        readOnly
+                        className={`${inputCls} font-mono text-xs`}
+                        value={url}
+                        onFocus={(e) => e.target.select()}
+                      />
+                      <button
+                        type="button"
+                        className={btnSecondary}
+                        onClick={async () => {
+                          await navigator.clipboard.writeText(url).catch(() => {});
+                          setCopied(s.token);
+                          setTimeout(() => setCopied(null), 1500);
+                        }}
+                      >
+                        {copied === s.token ? "Kopiert ✓" : "Kopieren"}
+                      </button>
+                      <button
+                        type="button"
+                        title="Link widerrufen"
+                        onClick={() => removeShare(s.token)}
+                        className="cursor-pointer rounded-lg p-2 text-neutral-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                        </svg>
+                      </button>
+                    </li>
+                  );
+                })}
+            </ul>
+          )}
+
+          <button
+            type="button"
+            className="w-full cursor-pointer rounded-lg bg-[#0057b8] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#004a99]"
+            onClick={async () => {
+              const share = createShare(project.id);
+              const url = `${window.location.origin}/share/${share.token}`;
+              await navigator.clipboard.writeText(url).catch(() => {});
+              setCopied(share.token);
+              setTimeout(() => setCopied(null), 1500);
+            }}
+          >
+            + Neuen Link erstellen (wird kopiert)
+          </button>
+        </Modal>
       )}
     </div>
   );
