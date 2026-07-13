@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { useHub } from "@/lib/store";
 
 function TuvLogo() {
   // Hexagonal mark inspired by the TÜV SÜD octagon shape (neutral re-creation)
@@ -97,6 +98,33 @@ const NAV: { href: string; label: string; icon: ReactNode }[] = [
   },
 ];
 
+function SyncBadge() {
+  const { mode, syncError } = useHub();
+  const cls =
+    syncError
+      ? "border-red-200 bg-red-50/60 text-red-700"
+      : mode === "shared"
+        ? "border-emerald-200 bg-emerald-50/60 text-emerald-700"
+        : "border-neutral-200 bg-neutral-50 text-neutral-500";
+  const label = syncError
+    ? "Sync error · retrying"
+    : mode === "shared"
+      ? "Shared · live"
+      : mode === "local"
+        ? "Local · this browser"
+        : "Connecting…";
+  return (
+    <div
+      className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold ${cls}`}
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M20 17.6a5 5 0 0 0-3-9 7 7 0 0 0-13 3 4.5 4.5 0 0 0 .5 9H19a4 4 0 0 0 1-3z" />
+      </svg>
+      {label}
+    </div>
+  );
+}
+
 export default function Sidebar() {
   const pathname = usePathname();
 
@@ -144,12 +172,7 @@ export default function Sidebar() {
       </nav>
 
       <div className="px-3 pb-4">
-        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-xs font-semibold text-emerald-700">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M20 17.6a5 5 0 0 0-3-9 7 7 0 0 0-13 3 4.5 4.5 0 0 0 .5 9H19a4 4 0 0 0 1-3z" />
-          </svg>
-          Local · stored in this browser
-        </div>
+        <SyncBadge />
       </div>
     </aside>
   );

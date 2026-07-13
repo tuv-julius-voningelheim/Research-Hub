@@ -1,7 +1,10 @@
 "use client";
 
-// Client-side state with IndexedDB persistence (idb-keyval).
-// No backend required — works on any static/Vercel deployment.
+// Client-side state with shared persistence:
+//  - "shared" mode: structure + vaults sync to /api/state and /api/vault
+//    (Vercel Blob) so the whole team sees the same workspace.
+//  - "local" fallback (no blob configured, e.g. plain `next dev`): IndexedDB.
+// IndexedDB additionally caches the last known state in both modes.
 
 import { get, set } from "idb-keyval";
 import {
@@ -23,11 +26,15 @@ export interface HubState {
   projects: Project[];
 }
 
+export type HubMode = "loading" | "local" | "shared";
+
 const EMPTY: HubState = { divisions: [], programs: [], projects: [] };
 
 interface HubContextValue {
   state: HubState;
   ready: boolean;
+  mode: HubMode;
+  syncError: boolean;
   addDivision: (name: string, description?: string) => Division;
   updateDivision: (id: string, patch: Partial<Division>) => void;
   removeDivision: (id: string) => void;
@@ -52,26 +59,138 @@ function uid(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
 
+/** structure as stored server-side: vault payloads stripped, presence flagged */
+function stripVaults(s: HubState) {
+  return {
+    divisions: s.divisions,
+    programs: s.programs,
+    projects: s.projects.map(({ vault, ...rest }) => ({
+      ...rest,
+      hasVault: !!vault,
+    })),
+  };
+}
+
 export function HubProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<HubState>(EMPTY);
   const [ready, setReady] = useState(false);
+  const [mode, setMode] = useState<HubMode>("loading");
+  const [syncError, setSyncError] = useState(false);
   const stateRef = useRef(state);
+  const modeRef = useRef(mode);
+  const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   stateRef.current = state;
+  modeRef.current = mode;
 
+  // initial load: try shared workspace first, fall back to IndexedDB
   useEffect(() => {
-    get<HubState>(DB_KEY)
-      .then((saved) => {
-        if (saved) setState(saved);
-      })
-      .finally(() => setReady(true));
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/state", { cache: "no-store" });
+        if (res.ok) {
+          const structure = await res.json();
+          const projects: Project[] = await Promise.all(
+            (structure.projects ?? []).map(
+              async (p: Project & { hasVault?: boolean }) => {
+                const { hasVault, ...rest } = p;
+                if (!hasVault) return rest as Project;
+                try {
+                  const v = await fetch(
+                    `/api/vault?projectId=${encodeURIComponent(p.id)}`,
+                    { cache: "no-store" }
+                  );
+                  if (v.ok) return { ...rest, vault: await v.json() } as Project;
+                } catch {
+                  // vault fetch failed — show project without analysis
+                }
+                return rest as Project;
+              }
+            )
+          );
+          if (cancelled) return;
+          const loaded: HubState = {
+            divisions: structure.divisions ?? [],
+            programs: structure.programs ?? [],
+            projects,
+          };
+          stateRef.current = loaded;
+          setState(loaded);
+          void set(DB_KEY, loaded);
+          setMode("shared");
+          setReady(true);
+          return;
+        }
+      } catch {
+        // network/API unavailable — local mode
+      }
+      const saved = await get<HubState>(DB_KEY);
+      if (cancelled) return;
+      if (saved) {
+        stateRef.current = saved;
+        setState(saved);
+      }
+      setMode("local");
+      setReady(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const persist = useCallback((next: HubState) => {
-    // keep the ref in sync immediately so several mutations inside one
-    // event handler (e.g. division -> program -> project seed) chain correctly
-    stateRef.current = next;
-    setState(next);
-    void set(DB_KEY, next);
+  const pushStructure = useCallback(() => {
+    if (modeRef.current !== "shared") return;
+    if (pushTimer.current) clearTimeout(pushTimer.current);
+    pushTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch("/api/state", {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(stripVaults(stateRef.current)),
+        });
+        setSyncError(!res.ok);
+      } catch {
+        setSyncError(true);
+      }
+    }, 600);
+  }, []);
+
+  const persist = useCallback(
+    (next: HubState) => {
+      // keep the ref in sync immediately so several mutations inside one
+      // event handler (e.g. division -> program -> project seed) chain correctly
+      stateRef.current = next;
+      setState(next);
+      void set(DB_KEY, next);
+      pushStructure();
+    },
+    [pushStructure]
+  );
+
+  const pushVault = useCallback(async (projectId: string, vault: Vault) => {
+    if (modeRef.current !== "shared") return;
+    try {
+      const res = await fetch(
+        `/api/vault?projectId=${encodeURIComponent(projectId)}`,
+        {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(vault),
+        }
+      );
+      setSyncError(!res.ok);
+    } catch {
+      setSyncError(true);
+    }
+  }, []);
+
+  const deleteVaults = useCallback((projectIds: string[]) => {
+    if (modeRef.current !== "shared") return;
+    for (const id of projectIds) {
+      void fetch(`/api/vault?projectId=${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      }).catch(() => {});
+    }
   }, []);
 
   const addDivision = useCallback(
@@ -98,13 +217,17 @@ export function HubProvider({ children }: { children: ReactNode }) {
     (id: string) => {
       const s = stateRef.current;
       const programIds = s.programs.filter((p) => p.divisionId === id).map((p) => p.id);
+      const removedProjects = s.projects.filter((p) =>
+        programIds.includes(p.programId)
+      );
+      deleteVaults(removedProjects.filter((p) => p.vault).map((p) => p.id));
       persist({
         divisions: s.divisions.filter((d) => d.id !== id),
         programs: s.programs.filter((p) => p.divisionId !== id),
         projects: s.projects.filter((p) => !programIds.includes(p.programId)),
       });
     },
-    [persist]
+    [persist, deleteVaults]
   );
 
   const addProgram = useCallback(
@@ -130,13 +253,15 @@ export function HubProvider({ children }: { children: ReactNode }) {
   const removeProgram = useCallback(
     (id: string) => {
       const s = stateRef.current;
+      const removedProjects = s.projects.filter((p) => p.programId === id);
+      deleteVaults(removedProjects.filter((p) => p.vault).map((p) => p.id));
       persist({
         ...s,
         programs: s.programs.filter((p) => p.id !== id),
         projects: s.projects.filter((p) => p.programId !== id),
       });
     },
-    [persist]
+    [persist, deleteVaults]
   );
 
   const addProject = useCallback(
@@ -168,16 +293,19 @@ export function HubProvider({ children }: { children: ReactNode }) {
   const removeProject = useCallback(
     (id: string) => {
       const s = stateRef.current;
+      const removed = s.projects.find((p) => p.id === id);
+      if (removed?.vault) deleteVaults([id]);
       persist({ ...s, projects: s.projects.filter((p) => p.id !== id) });
     },
-    [persist]
+    [persist, deleteVaults]
   );
 
   const attachVault = useCallback(
     (projectId: string, vault: Vault) => {
+      void pushVault(projectId, vault);
       updateProject(projectId, { vault });
     },
-    [updateProject]
+    [updateProject, pushVault]
   );
 
   return (
@@ -185,6 +313,8 @@ export function HubProvider({ children }: { children: ReactNode }) {
       value={{
         state,
         ready,
+        mode,
+        syncError,
         addDivision,
         updateDivision,
         removeDivision,

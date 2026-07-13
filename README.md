@@ -11,8 +11,11 @@ Division  →  Program  →  Project  →  Second-Brain-Export (ZIP)
 ```
 
 Jedes Projekt hält genau einen Export. Der Vault wird direkt **im Browser** geparst
-(JSZip) und in IndexedDB gespeichert — es gibt keinen Server-Speicher und keine
-Datenbank. Damit läuft die App ohne weitere Infrastruktur auf Vercel.
+(JSZip). Gespeichert wird in einem geteilten Workspace auf **Vercel Blob** (Free Tier):
+`/api/state` hält die Struktur, `/api/vault?projectId=…` je Projekt die geparste
+Auswertung. Ohne konfigurierten Blob-Store (z. B. lokales `next dev` ohne Token)
+fällt die App automatisch auf lokalen IndexedDB-Modus zurück — sichtbar am Badge
+unten links („Shared · live“ vs. „Local · this browser“).
 
 ## Was wird ausgewertet?
 
@@ -51,6 +54,9 @@ exakt dieselbe Parsing-Pipeline wie ein manueller Upload.
 
 ## Hinweis zur Speicherung
 
-Alle Daten liegen lokal im Browser (IndexedDB) der Person, die sie hochgeladen hat.
-Für echtes Team-Sharing wäre der nächste Ausbauschritt eine kleine Datenbank
-(z. B. Vercel Postgres / Blob) hinter denselben Parser-Ergebnissen.
+Der geteilte Workspace nutzt Vercel Blob mit Last-Write-Wins-Semantik (die ganze
+Struktur wird als ein JSON geschrieben). Für kleine Teams ist das unkritisch;
+bei vielen gleichzeitigen Bearbeitenden wäre eine relationale Datenbank der
+nächste Ausbauschritt. Blob-Objekte sind technisch öffentlich erreichbar, aber
+nur über nicht erratbare Store-URLs — für vertrauliche Daten ggf. Zugriffsschutz
+(Auth) ergänzen.
