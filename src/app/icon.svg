@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">
+  <polygon points="12,2 28,2 38,12 38,28 28,38 12,38 2,28 2,12" fill="#001a4b"/>
+  <text x="20" y="19" text-anchor="middle" fill="#ffffff" font-size="10" font-weight="800" font-family="Arial, sans-serif">TÜV</text>
+  <text x="20" y="30" text-anchor="middle" fill="#7fb2ff" font-size="8" font-weight="700" font-family="Arial, sans-serif">SÜD</text>
+</svg>

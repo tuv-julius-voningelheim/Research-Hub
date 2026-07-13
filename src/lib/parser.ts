@@ -1,0 +1,239 @@
+import JSZip from "jszip";
+import type { Note, NoteType, Quote, Vault } from "./types";
+
+// ---------- frontmatter ----------
+
+export function parseFrontmatter(raw: string): {
+  frontmatter: Record<string, string>;
+  body: string;
+} {
+  const fm: Record<string, string> = {};
+  if (!raw.startsWith("---")) return { frontmatter: fm, body: raw };
+  const end = raw.indexOf("\n---", 3);
+  if (end === -1) return { frontmatter: fm, body: raw };
+  const block = raw.slice(3, end);
+  for (const line of block.split("\n")) {
+    const m = line.match(/^([A-Za-z0-9_-]+)\s*:\s*(.*)$/);
+    if (!m) continue;
+    let value = m[2].trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    if (value) fm[m[1].toLowerCase()] = value;
+  }
+  const body = raw.slice(end + 4).replace(/^-*\s*\n?/, "");
+  return { frontmatter: fm, body };
+}
+
+// ---------- body extraction ----------
+
+function extractSections(body: string): Record<string, string> {
+  const sections: Record<string, string> = {};
+  const parts = body.split(/^##\s+/m);
+  for (let i = 1; i < parts.length; i++) {
+    const nl = parts[i].indexOf("\n");
+    const heading = (nl === -1 ? parts[i] : parts[i].slice(0, nl)).trim();
+    const content = nl === -1 ? "" : parts[i].slice(nl + 1).trim();
+    if (heading) sections[heading] = content;
+  }
+  return sections;
+}
+
+function extractFields(body: string): Record<string, string> {
+  const fields: Record<string, string> = {};
+  const re = /^\*\*([^*:]+):?\*\*:?\s*(.+)$/gm;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(body))) {
+    const key = m[1].replace(/:$/, "").trim();
+    const value = m[2].trim();
+    if (key && value && !fields[key]) fields[key] = value;
+  }
+  return fields;
+}
+
+function extractQuotes(body: string): Quote[] {
+  const quotes: Quote[] = [];
+  const lines = body.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line.startsWith(">")) continue;
+    // collect a contiguous blockquote
+    let text = line.replace(/^>\s?/, "");
+    while (i + 1 < lines.length && lines[i + 1].startsWith(">")) {
+      i++;
+      text += " " + lines[i].replace(/^>\s?/, "");
+    }
+    text = text.trim();
+    if (!text) continue;
+    // attribution: "… — INT-001" (possibly with trailing note in parens)
+    let source: string | undefined;
+    const attr = text.match(/[—–]\s*([^—–]+)$/);
+    if (attr && attr[1].trim().length <= 80) {
+      source = attr[1].trim();
+      text = text.slice(0, attr.index).trim();
+    }
+    // meaning-unit code on the following non-quote line: "Code: #code/xyz"
+    let code: string | undefined;
+    for (let j = i + 1; j < Math.min(i + 3, lines.length); j++) {
+      const cm = lines[j].match(/^Code:\s*(#code\/[\w./-]+)/i);
+      if (cm) {
+        code = cm[1];
+        break;
+      }
+      if (lines[j].trim() && !lines[j].startsWith(">")) break;
+    }
+    // strip typographic quote marks
+    text = text.replace(/^[„"“']+/, "").replace(/["“”']+$/, "");
+    quotes.push({ text, source, code });
+  }
+  return quotes;
+}
+
+function extractCodes(body: string): string[] {
+  const set = new Set<string>();
+  const re = /#code\/[\w./-]+/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(body))) set.add(m[0]);
+  return [...set];
+}
+
+function extractLinks(body: string): string[] {
+  const set = new Set<string>();
+  const re = /\[\[([^\]|#]+)(?:[|#][^\]]*)?\]\]/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(body))) {
+    const target = m[1].trim();
+    if (target) set.add(target);
+  }
+  return [...set];
+}
+
+function extractTitle(body: string, fallback: string): string {
+  const m = body.match(/^#\s+(.+)$/m);
+  if (!m) return fallback;
+  return m[1]
+    .replace(/^(Interview|Theme|Pain Point|Need|Insight|Recommendation|Persona)\s*:\s*/i, "")
+    .trim();
+}
+
+// ---------- classification ----------
+
+const FOLDER_TYPE: [RegExp, NoteType][] = [
+  [/interview/i, "interview"],
+  [/theme/i, "theme"],
+  [/pain[-_ ]?point/i, "pain-point"],
+  [/need/i, "need"],
+  [/insight/i, "insight"],
+  [/recommendation/i, "recommendation"],
+  [/persona/i, "persona"],
+  [/template/i, "template"],
+  [/method/i, "method"],
+  [/archive|archiv/i, "archive"],
+];
+
+const FM_TYPE: Record<string, NoteType> = {
+  interview: "interview",
+  theme: "theme",
+  "pain-point": "pain-point",
+  painpoint: "pain-point",
+  need: "need",
+  insight: "insight",
+  recommendation: "recommendation",
+  persona: "persona",
+};
+
+function classify(path: string, fm: Record<string, string>): NoteType {
+  const parts = path.split("/");
+  const folders = parts.slice(0, -1);
+  // templates live inside a methods folder — folder wins over fm.typ there
+  if (folders.some((f) => /template/i.test(f))) return "template";
+  const typ = (fm["typ"] || fm["type"])?.toLowerCase();
+  if (typ && FM_TYPE[typ]) return FM_TYPE[typ];
+  for (const folder of folders) {
+    for (const [re, t] of FOLDER_TYPE) {
+      if (re.test(folder)) return t;
+    }
+  }
+  if (folders.length === 0) return "wiki";
+  return "other";
+}
+
+// ---------- zip -> vault ----------
+
+const SKIP_RE = /(^|\/)(\.obsidian|\.github|\.git|__MACOSX)(\/|$)|\.DS_Store/;
+
+export async function parseVaultZip(file: File | Blob, fileName: string): Promise<Vault> {
+  const zip = await JSZip.loadAsync(file);
+  const notes: Note[] = [];
+  const rootCounts = new Map<string, number>();
+
+  const entries = Object.values(zip.files).filter((e) => {
+    if (e.dir) return false;
+    if (SKIP_RE.test(e.name)) return false;
+    return /\.(md|txt)$/i.test(e.name);
+  });
+
+  for (const entry of entries) {
+    const raw = await entry.async("string");
+    // normalize path: drop a shared top-level folder later; keep as-is for now
+    const path = entry.name.replace(/\\/g, "/");
+    const parts = path.split("/");
+    if (parts.length > 1) {
+      rootCounts.set(parts[0], (rootCounts.get(parts[0]) ?? 0) + 1);
+    }
+
+    const fileBase = parts[parts.length - 1].replace(/\.(md|txt)$/i, "");
+    const { frontmatter, body } = parseFrontmatter(raw);
+    const isTxt = /\.txt$/i.test(path);
+
+    const note: Note = {
+      slug: fileBase,
+      path,
+      folder: parts.length > 1 ? parts[parts.length - 2] : "",
+      type: "other",
+      title: isTxt ? fileBase : extractTitle(body, frontmatter["name"] || fileBase),
+      frontmatter,
+      body,
+      sections: isTxt ? {} : extractSections(body),
+      fields: isTxt ? {} : extractFields(body),
+      quotes: isTxt ? [] : extractQuotes(body),
+      codes: extractCodes(body),
+      links: isTxt ? [] : extractLinks(body),
+    };
+    notes.push(note);
+  }
+
+  if (notes.length === 0) {
+    throw new Error("Keine Markdown-/Text-Dateien im ZIP gefunden.");
+  }
+
+  // vault name: the single top-level folder if all files share one
+  let vaultName = fileName.replace(/\.zip$/i, "");
+  if (rootCounts.size === 1 && [...rootCounts.values()][0] === notes.length) {
+    vaultName = [...rootCounts.keys()][0];
+    // strip the shared root from paths for classification/folder display
+    for (const n of notes) {
+      n.path = n.path.split("/").slice(1).join("/");
+      const p = n.path.split("/");
+      n.folder = p.length > 1 ? p[p.length - 2] : "";
+    }
+  }
+
+  for (const n of notes) {
+    n.type = classify(n.path, n.frontmatter);
+    if (n.type === "other" && !n.path.includes("/")) n.type = "wiki";
+  }
+
+  // sort: by path for stable display
+  notes.sort((a, b) => a.path.localeCompare(b.path, "de"));
+
+  return {
+    name: vaultName,
+    uploadedAt: Date.now(),
+    zipFileName: fileName,
+    notes,
+  };
+}
