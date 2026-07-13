@@ -194,13 +194,13 @@ export default function ProgramDetailPage() {
               <Link
                 key={`${r.project.id}:${r.note.slug}`}
                 href={`/projects/${r.project.id}?note=${encodeURIComponent(r.note.slug)}`}
-                className="elev elev-hover flex w-full items-center gap-3 rounded-2xl border border-neutral-200/70 bg-white px-4 py-3"
+                className="elev elev-hover flex w-full flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-neutral-200 bg-white px-4 py-3"
               >
                 <span className="w-5 shrink-0 text-sm font-extrabold text-neutral-400">
                   {i + 1}
                 </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold text-neutral-800">
+                <span className="min-w-[200px] flex-1">
+                  <span className="block text-sm font-semibold text-neutral-800">
                     {r.note.title}
                   </span>
                   <span className="text-xs text-neutral-400">{r.project.name}</span>

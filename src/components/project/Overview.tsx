@@ -128,12 +128,12 @@ export default function Overview({
                 key={r.note.slug}
                 type="button"
                 onClick={() => onOpen(r.note)}
-                className="flex w-full cursor-pointer items-center gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-3 text-left transition-shadow hover:shadow-md"
+                className="flex w-full cursor-pointer flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-neutral-200 bg-white px-4 py-3 text-left transition-shadow hover:shadow-md"
               >
                 <span className="w-5 shrink-0 text-sm font-extrabold text-neutral-400">
                   {i + 1}
                 </span>
-                <span className="flex-1 text-sm font-semibold text-neutral-800">
+                <span className="min-w-[200px] flex-1 text-sm font-semibold text-neutral-800">
                   {r.note.title}
                 </span>
                 <LevelBadge level={r.severity} prefix="Severity" />

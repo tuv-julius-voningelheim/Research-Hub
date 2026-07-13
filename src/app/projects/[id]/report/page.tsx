@@ -1,13 +1,17 @@
 "use client";
 
 // Print-optimized report view: clean typographic document for "Save as PDF"
-// via the browser print dialog. Rendered without app chrome (see LayoutShell).
+// via the browser print dialog. A no-print toolbar lets the user pick which
+// sections/tabs to include. Rendered without app chrome (see LayoutShell).
 
 import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
+  codesIndex,
+  interviewMeta,
+  lintVault,
   notesOf,
   openQuestions,
   rankPainPoints,
@@ -16,9 +20,14 @@ import {
   totalQuotes,
 } from "@/lib/analytics";
 import { divisionOf, programOf, useHub } from "@/lib/store";
+import type { Note } from "@/lib/types";
 
 function cap(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function stripWiki(s: string) {
+  return s.replace(/\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g, "$1").replace(/\*\*/g, "");
 }
 
 const SEV_CLS: Record<string, string> = {
@@ -28,67 +37,127 @@ const SEV_CLS: Record<string, string> = {
   niedrig: "bg-neutral-100 text-neutral-600 ring-neutral-200",
 };
 
+const SECTIONS: { key: string; label: string; default: boolean }[] = [
+  { key: "shortlist", label: "Priority Shortlist", default: true },
+  { key: "themes", label: "Themes", default: true },
+  { key: "painpoints", label: "Pain Points (alle)", default: false },
+  { key: "needs", label: "Needs", default: false },
+  { key: "insights", label: "Insights", default: true },
+  { key: "recommendations", label: "Recommendations", default: true },
+  { key: "personas", label: "Personas", default: false },
+  { key: "interviews", label: "Interviews", default: false },
+  { key: "codes", label: "Top-Codes", default: false },
+  { key: "quality", label: "Qualitätscheck", default: false },
+  { key: "questions", label: "Offene Fragen", default: true },
+  { key: "notes", label: "Next Steps & Notizen", default: true },
+];
+
+function SectionH2({ children }: { children: React.ReactNode }) {
+  return <h2 className="mb-4 text-lg font-bold text-neutral-900">{children}</h2>;
+}
+
+function QuoteBlock({ note }: { note: Note }) {
+  const q = note.quotes[0];
+  if (!q) return null;
+  return (
+    <blockquote className="mt-2 border-l-2 border-[#0057b8] pl-3 text-sm italic leading-relaxed text-neutral-600">
+      „{q.text}“
+      {q.source && <span className="not-italic text-neutral-400"> — {q.source}</span>}
+    </blockquote>
+  );
+}
+
 export default function ReportPage() {
   const params = useParams<{ id: string }>();
   const { state, ready } = useHub();
   const project = state.projects.find((p) => p.id === params.id);
   const vault = project?.vault;
 
+  const [on, setOn] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(SECTIONS.map((s) => [s.key, s.default]))
+  );
+
   const ranked = useMemo(() => rankPainPoints(vault), [vault]);
   const themes = useMemo(() => themeSummaries(vault), [vault]);
   const recs = useMemo(() => recTraces(vault), [vault]);
   const questions = useMemo(() => openQuestions(vault), [vault]);
+  const codes = useMemo(() => codesIndex(vault).slice(0, 15), [vault]);
+  const lint = useMemo(() => lintVault(vault), [vault]);
 
   if (!ready) return null;
   if (!project) {
     return (
       <div className="p-10 text-sm text-neutral-500">
-        Projekt nicht gefunden. <Link href="/projects" className="text-[#0057b8] underline">Zurück</Link>
+        Projekt nicht gefunden.{" "}
+        <Link href="/projects" className="text-[#0057b8] underline">
+          Zurück
+        </Link>
       </div>
     );
   }
 
   const program = programOf(state, project);
   const division = divisionOf(state, project);
-  const interviews = notesOf(vault, "interview");
+  const interviews = vault ? notesOf(vault, "interview") : [];
+  const needs = vault ? notesOf(vault, "need") : [];
+  const insights = vault ? notesOf(vault, "insight") : [];
+  const personas = vault ? notesOf(vault, "persona") : [];
+  const codesMax = Math.max(1, ...codes.map((c) => c.total));
 
   return (
     <div className="min-h-screen bg-neutral-100 print:bg-white">
       {/* toolbar (not printed) */}
       <div className="no-print sticky top-0 z-10 border-b border-neutral-200 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-[820px] items-center justify-between px-6 py-3">
-          <Link
-            href={`/projects/${project.id}`}
-            className="text-sm font-semibold text-neutral-600 hover:text-neutral-900"
-          >
-            ← Zurück zum Projekt
-          </Link>
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="cursor-pointer rounded-lg bg-[#0057b8] px-4 py-2 text-sm font-semibold text-white hover:bg-[#004a99]"
-          >
-            Als PDF speichern / Drucken
-          </button>
+        <div className="mx-auto max-w-[860px] px-4 py-3 sm:px-6">
+          <div className="flex items-center justify-between gap-3">
+            <Link
+              href={`/projects/${project.id}`}
+              className="text-sm font-semibold text-neutral-600 hover:text-neutral-900"
+            >
+              ← Zurück
+            </Link>
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="cursor-pointer rounded-lg bg-[#0057b8] px-4 py-2 text-sm font-semibold text-white hover:bg-[#004a99]"
+            >
+              Als PDF speichern / Drucken
+            </button>
+          </div>
+          {/* section picker */}
+          <div className="mt-2.5 flex flex-wrap gap-1.5">
+            {SECTIONS.map((s) => (
+              <button
+                key={s.key}
+                type="button"
+                onClick={() => setOn((o) => ({ ...o, [s.key]: !o[s.key] }))}
+                className={`cursor-pointer rounded-full px-3 py-1 text-xs font-semibold ring-1 transition-colors ${
+                  on[s.key]
+                    ? "bg-blue-50 text-[#0057b8] ring-blue-200"
+                    : "bg-white text-neutral-400 ring-neutral-200 hover:text-neutral-600"
+                }`}
+              >
+                {on[s.key] ? "✓ " : ""}
+                {s.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* document */}
-      <article className="print-page mx-auto my-8 max-w-[820px] bg-white px-14 py-12 shadow-[0_2px_20px_rgba(16,24,40,0.08)] print:my-0 print:max-w-none print:px-0 print:py-0 print:shadow-none">
-        {/* title */}
+      <article className="print-page mx-auto my-4 max-w-[860px] bg-white px-5 py-8 shadow-[0_2px_20px_rgba(16,24,40,0.08)] sm:my-8 sm:px-14 sm:py-12 print:my-0 print:max-w-none print:px-0 print:py-0 print:shadow-none">
         <header className="border-b-2 border-[#0057b8] pb-6">
           <div className="flex items-start justify-between gap-6">
             <div>
               <div className="text-xs font-semibold uppercase tracking-widest text-[#0057b8]">
                 UX Research Report
               </div>
-              <h1 className="mt-2 text-3xl font-bold tracking-tight text-neutral-900">
+              <h1 className="mt-2 text-2xl font-bold tracking-tight text-neutral-900 sm:text-3xl">
                 {project.name}
               </h1>
               <p className="mt-2 text-sm text-neutral-500">
-                {[division?.name, program?.name, project.method]
-                  .filter(Boolean)
-                  .join(" · ")}
+                {[division?.name, program?.name, project.method].filter(Boolean).join(" · ")}
                 {vault &&
                   ` · Export vom ${new Date(vault.uploadedAt).toLocaleDateString("de-DE")}`}
               </p>
@@ -103,9 +172,9 @@ export default function ReportPage() {
           </p>
         ) : (
           <>
-            {/* key figures */}
+            {/* key figures — always on */}
             <section className="mt-8">
-              <div className="grid grid-cols-4 gap-px overflow-hidden rounded-xl bg-neutral-200 ring-1 ring-neutral-200">
+              <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-neutral-200 ring-1 ring-neutral-200 sm:grid-cols-4">
                 {[
                   [interviews.length, "Interviews"],
                   [themes.length, "Themes"],
@@ -120,8 +189,7 @@ export default function ReportPage() {
               </div>
             </section>
 
-            {/* shortlist */}
-            {ranked.length > 0 && (
+            {on.shortlist && ranked.length > 0 && (
               <section className="mt-10">
                 <h2 className="mb-1 text-lg font-bold text-neutral-900">
                   Priority Shortlist
@@ -153,52 +221,120 @@ export default function ReportPage() {
               </section>
             )}
 
-            {/* themes */}
-            {themes.length > 0 && (
+            {on.themes && themes.length > 0 && (
               <section className="mt-10">
-                <h2 className="mb-4 text-lg font-bold text-neutral-900">Themes</h2>
+                <SectionH2>Themes</SectionH2>
                 <div className="space-y-5">
-                  {themes.map((t) => {
-                    const def = t.note.sections["Definition"]?.split("\n")[0];
-                    const quote = t.note.quotes[0];
-                    return (
-                      <div key={t.note.slug} className="break-inside-avoid">
-                        <h3 className="text-[15px] font-bold text-neutral-900">
-                          {t.note.title}
-                        </h3>
-                        <div className="mt-0.5 text-xs text-neutral-500">
-                          Confidence {cap(t.confidence)} · {t.interviewCount} Interviews ·{" "}
-                          {t.quoteCount} Zitate · {t.painPoints.length} Pain Points
-                        </div>
-                        {def && (
-                          <p className="mt-1.5 text-sm leading-relaxed text-neutral-700">
-                            {def}
-                          </p>
-                        )}
-                        {quote && (
-                          <blockquote className="mt-2 border-l-2 border-[#0057b8] pl-3 text-sm italic leading-relaxed text-neutral-600">
-                            „{quote.text}“
-                            {quote.source && (
-                              <span className="not-italic text-neutral-400"> — {quote.source}</span>
-                            )}
-                          </blockquote>
-                        )}
+                  {themes.map((t) => (
+                    <div key={t.note.slug} className="break-inside-avoid">
+                      <h3 className="text-[15px] font-bold text-neutral-900">
+                        {t.note.title}
+                      </h3>
+                      <div className="mt-0.5 text-xs text-neutral-500">
+                        Confidence {cap(t.confidence)} · {t.interviewCount} Interviews ·{" "}
+                        {t.quoteCount} Zitate · {t.painPoints.length} Pain Points
                       </div>
-                    );
-                  })}
+                      {t.note.sections["Definition"] && (
+                        <p className="mt-1.5 text-sm leading-relaxed text-neutral-700">
+                          {stripWiki(t.note.sections["Definition"].split("\n")[0])}
+                        </p>
+                      )}
+                      <QuoteBlock note={t.note} />
+                    </div>
+                  ))}
                 </div>
               </section>
             )}
 
-            {/* recommendations */}
-            {recs.length > 0 && (
+            {on.painpoints && ranked.length > 0 && (
               <section className="mt-10">
-                <h2 className="mb-4 text-lg font-bold text-neutral-900">
-                  Recommendations
-                </h2>
+                <SectionH2>Pain Points</SectionH2>
+                <div className="space-y-4">
+                  {ranked.map((r) => (
+                    <div key={r.note.slug} className="break-inside-avoid">
+                      <div className="flex items-start justify-between gap-3">
+                        <h3 className="text-sm font-bold text-neutral-900">
+                          {r.note.title}
+                        </h3>
+                        <span
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${SEV_CLS[r.severity] ?? SEV_CLS.niedrig}`}
+                        >
+                          {cap(r.severity)}
+                        </span>
+                      </div>
+                      <div className="mt-0.5 text-xs text-neutral-500">
+                        Confidence {cap(r.confidence)} · Evidenz aus {r.evidence}{" "}
+                        Interview(s)
+                      </div>
+                      {r.note.fields["Beschreibung"] && (
+                        <p className="mt-1 text-sm leading-relaxed text-neutral-700">
+                          {stripWiki(r.note.fields["Beschreibung"])}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {on.needs && needs.length > 0 && (
+              <section className="mt-10">
+                <SectionH2>Needs</SectionH2>
+                <div className="space-y-3">
+                  {needs.map((n) => (
+                    <div key={n.slug} className="break-inside-avoid">
+                      <h3 className="text-sm font-bold text-neutral-900">
+                        {n.title}
+                        {n.frontmatter["kategorie"] && (
+                          <span className="ml-2 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200">
+                            {n.frontmatter["kategorie"]}
+                          </span>
+                        )}
+                      </h3>
+                      {n.fields["Beschreibung"] && (
+                        <p className="mt-1 text-sm leading-relaxed text-neutral-700">
+                          {stripWiki(n.fields["Beschreibung"])}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {on.insights && insights.length > 0 && (
+              <section className="mt-10">
+                <SectionH2>Insights</SectionH2>
+                <div className="space-y-4">
+                  {insights.map((n) => (
+                    <div key={n.slug} className="break-inside-avoid rounded-xl bg-emerald-50/50 p-4 ring-1 ring-emerald-100">
+                      <h3 className="text-sm font-bold text-neutral-900">{n.title}</h3>
+                      {n.fields["Insight"] && (
+                        <p className="mt-1 text-sm leading-relaxed text-neutral-700">
+                          {stripWiki(n.fields["Insight"])}
+                        </p>
+                      )}
+                      {n.fields["Business Impact"] && (
+                        <p className="mt-2 text-xs leading-relaxed text-neutral-600">
+                          <span className="font-semibold">Business Impact:</span>{" "}
+                          {stripWiki(n.fields["Business Impact"])}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {on.recommendations && recs.length > 0 && (
+              <section className="mt-10">
+                <SectionH2>Recommendations</SectionH2>
                 <div className="space-y-4">
                   {recs.map((r) => (
-                    <div key={r.note.slug} className="break-inside-avoid rounded-xl bg-neutral-50 p-4 ring-1 ring-neutral-200">
+                    <div
+                      key={r.note.slug}
+                      className="break-inside-avoid rounded-xl bg-neutral-50 p-4 ring-1 ring-neutral-200"
+                    >
                       <div className="flex items-start justify-between gap-3">
                         <h3 className="text-sm font-bold text-neutral-900">
                           {r.note.title}
@@ -209,7 +345,7 @@ export default function ReportPage() {
                       </div>
                       {r.note.fields["Empfehlung"] && (
                         <p className="mt-1.5 text-sm leading-relaxed text-neutral-700">
-                          {r.note.fields["Empfehlung"].replace(/\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g, "$1")}
+                          {stripWiki(r.note.fields["Empfehlung"])}
                         </p>
                       )}
                       {r.anchorInsight && (
@@ -223,12 +359,123 @@ export default function ReportPage() {
               </section>
             )}
 
-            {/* open questions */}
-            {questions.length > 0 && (
+            {on.personas && personas.length > 0 && (
+              <section className="mt-10">
+                <SectionH2>Personas</SectionH2>
+                <div className="space-y-4">
+                  {personas.map((n) => (
+                    <div key={n.slug} className="break-inside-avoid">
+                      <h3 className="text-sm font-bold text-neutral-900">
+                        {n.title}
+                        {n.frontmatter["status"] && (
+                          <span className="ml-2 rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600 ring-1 ring-neutral-200">
+                            {n.frontmatter["status"]}
+                          </span>
+                        )}
+                      </h3>
+                      <div className="mt-0.5 text-xs text-neutral-500">
+                        Segment: {n.frontmatter["segment"] ?? "—"}
+                      </div>
+                      {n.sections["Kontext"] && (
+                        <p className="mt-1 text-sm leading-relaxed text-neutral-700">
+                          {stripWiki(n.sections["Kontext"].split("\n")[0])}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {on.interviews && interviews.length > 0 && (
               <section className="mt-10 break-inside-avoid">
-                <h2 className="mb-3 text-lg font-bold text-neutral-900">
-                  Offene Fragen &amp; Research Gaps
-                </h2>
+                <SectionH2>Interviews</SectionH2>
+                <div className="overflow-hidden rounded-xl ring-1 ring-neutral-200">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-neutral-50 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                        <th className="px-3 py-2">ID</th>
+                        <th className="px-3 py-2">Segment</th>
+                        <th className="px-3 py-2">Datum</th>
+                        <th className="px-3 py-2 text-right">Meaning Units</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {interviews.map((n) => {
+                        const m = interviewMeta(n);
+                        return (
+                          <tr key={n.slug} className="border-t border-neutral-100">
+                            <td className="px-3 py-2 font-semibold text-neutral-800">
+                              {m.participantId ?? n.title}
+                            </td>
+                            <td className="px-3 py-2 text-neutral-600">{m.segment ?? "—"}</td>
+                            <td className="px-3 py-2 text-neutral-600">{m.date ?? "—"}</td>
+                            <td className="px-3 py-2 text-right text-neutral-600">
+                              {m.meaningUnits}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
+
+            {on.codes && codes.length > 0 && (
+              <section className="mt-10 break-inside-avoid">
+                <SectionH2>Top-Codes</SectionH2>
+                <div className="space-y-1.5">
+                  {codes.map((c) => (
+                    <div key={c.code} className="flex items-center gap-3">
+                      <div className="w-56 shrink-0 truncate text-xs font-semibold text-neutral-700 sm:w-72">
+                        {c.code.replace("#code/", "")}
+                      </div>
+                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-neutral-100">
+                        <div
+                          className="h-full rounded-full bg-[#2a78d6]"
+                          style={{ width: `${(c.total / codesMax) * 100}%` }}
+                        />
+                      </div>
+                      <div className="w-6 text-right text-xs font-bold text-neutral-700">
+                        {c.total}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {on.quality && lint.length > 0 && (
+              <section className="mt-10 break-inside-avoid">
+                <SectionH2>Qualitätscheck (SOP-Regeln)</SectionH2>
+                <ul className="space-y-1.5">
+                  {lint.map((f, i) => (
+                    <li key={i} className="flex gap-2 text-sm leading-relaxed text-neutral-700">
+                      <span
+                        className={`mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ring-1 ${
+                          f.level === "error"
+                            ? "bg-red-50 text-red-800 ring-red-200"
+                            : f.level === "warning"
+                              ? "bg-amber-50 text-amber-800 ring-amber-200"
+                              : "bg-blue-50 text-blue-800 ring-blue-200"
+                        }`}
+                      >
+                        {f.level === "error" ? "Verstoß" : f.level === "warning" ? "Warnung" : "Hinweis"}
+                      </span>
+                      <span>
+                        <span className="font-semibold">{f.rule}:</span> {f.message}{" "}
+                        <span className="text-neutral-400">({f.note.title})</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {on.questions && questions.length > 0 && (
+              <section className="mt-10 break-inside-avoid">
+                <SectionH2>Offene Fragen &amp; Research Gaps</SectionH2>
                 <ul className="space-y-1.5">
                   {questions.map((q, i) => (
                     <li key={i} className="flex gap-2 text-sm leading-relaxed text-neutral-700">
@@ -240,12 +487,9 @@ export default function ReportPage() {
               </section>
             )}
 
-            {/* next steps + notes */}
-            {(project.nextSteps?.length || project.notes?.trim()) && (
+            {on.notes && (project.nextSteps?.length || project.notes?.trim()) ? (
               <section className="mt-10 break-inside-avoid">
-                <h2 className="mb-3 text-lg font-bold text-neutral-900">
-                  Next Steps &amp; Notizen
-                </h2>
+                <SectionH2>Next Steps &amp; Notizen</SectionH2>
                 {project.nextSteps?.map((s) => (
                   <div key={s.id} className="flex items-center gap-2 text-sm text-neutral-700">
                     <span
@@ -268,7 +512,7 @@ export default function ReportPage() {
                   </p>
                 )}
               </section>
-            )}
+            ) : null}
           </>
         )}
 
