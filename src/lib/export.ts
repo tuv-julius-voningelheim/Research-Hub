@@ -1,11 +1,10 @@
-// Markdown report generator — always exports the FULL content of a project:
+// Markdown report generator — always exports the full content of a project:
 // shortlist, themes, pain points, needs, insights, recommendations, personas,
-// interviews, codes, quality findings, open questions, next steps and notes.
+// interviews, open questions (minus hidden ones), requirements, next steps
+// and notes. Curated "killer quotes" are preferred.
 
 import {
-  codesIndex,
   interviewMeta,
-  lintVault,
   notesOf,
   openQuestions,
   rankPainPoints,
@@ -13,7 +12,7 @@ import {
   themeSummaries,
   totalQuotes,
 } from "./analytics";
-import type { Note, Project } from "./types";
+import { quoteKey, type Note, type Project } from "./types";
 
 function cap(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -23,10 +22,18 @@ function stripWiki(s: string): string {
   return s.replace(/\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g, "$1");
 }
 
-function quoteLines(n: Note, limit = 3): string[] {
-  return n.quotes.slice(0, limit).map(
-    (q) => `> „${q.text}“${q.source ? ` — ${q.source}` : ""}`
-  );
+function quoteLines(n: Note, limit = 3, starred?: string[]): string[] {
+  // curated "killer quotes" first
+  const sorted = starred?.length
+    ? [...n.quotes].sort(
+        (a, b) =>
+          Number(starred.includes(quoteKey(b.text))) -
+          Number(starred.includes(quoteKey(a.text)))
+      )
+    : n.quotes;
+  return sorted
+    .slice(0, limit)
+    .map((q) => `> „${q.text}“${q.source ? ` — ${q.source}` : ""}`);
 }
 
 export function buildMarkdownReport(
@@ -64,9 +71,8 @@ export function buildMarkdownReport(
   const insights = notesOf(vault, "insight");
   const recs = recTraces(vault);
   const personas = notesOf(vault, "persona");
-  const codes = codesIndex(vault);
-  const lint = lintVault(vault);
-  const questions = openQuestions(vault);
+  const hidden = project.hiddenQuestions ?? [];
+  const questions = openQuestions(vault).filter((q) => !hidden.includes(q.question));
 
   // ---- key figures ----
   push("## Auf einen Blick");
@@ -80,7 +86,6 @@ export function buildMarkdownReport(
   push(`| Insights | ${insights.length} |`);
   push(`| Recommendations | ${recs.length} |`);
   push(`| Personas | ${personas.length} |`);
-  push(`| Codes | ${codes.length} |`);
   push(`| Belegte Zitate | ${totalQuotes(vault)} |`);
   push();
 
@@ -111,7 +116,7 @@ export function buildMarkdownReport(
         push();
         push(stripWiki(def.split("\n")[0]));
       }
-      const qs = quoteLines(t.note, 2);
+      const qs = quoteLines(t.note, 2, project.starredQuotes?.[t.note.slug]);
       if (qs.length) {
         push();
         qs.forEach((q) => push(q));
@@ -137,7 +142,7 @@ export function buildMarkdownReport(
           push(`**${key}:** ${stripWiki(f[key])}`);
         }
       }
-      const qs = quoteLines(r.note, 2);
+      const qs = quoteLines(r.note, 2, project.starredQuotes?.[r.note.slug]);
       if (qs.length) {
         push();
         qs.forEach((q) => push(q));
@@ -151,8 +156,9 @@ export function buildMarkdownReport(
     push("## Needs");
     push();
     for (const n of needs) {
+      const kategorie = n.frontmatter["kategorie"] || n.fields["Kategorie"];
       push(
-        `- **${n.title}**${n.frontmatter["kategorie"] ? ` _(${n.frontmatter["kategorie"]})_` : ""}${n.fields["Beschreibung"] ? ` — ${stripWiki(n.fields["Beschreibung"])}` : ""}`
+        `- **${n.title}**${kategorie ? ` _(${kategorie})_` : ""}${n.fields["Beschreibung"] ? ` — ${stripWiki(n.fields["Beschreibung"])}` : ""}`
       );
     }
     push();
@@ -226,37 +232,11 @@ export function buildMarkdownReport(
   if (interviews.length) {
     push("## Interviews");
     push();
-    push(`| ID | Name | Segment | Datum | Meaning Units |`);
-    push(`|---|---|---|---|---|`);
+    push(`| ID | Segment | Meaning Units |`);
+    push(`|---|---|---|`);
     for (const n of interviews) {
       const m = interviewMeta(n);
-      push(
-        `| ${m.participantId ?? "—"} | ${m.name ?? n.title} | ${m.segment ?? "—"} | ${m.date ?? "—"} | ${m.meaningUnits} |`
-      );
-    }
-    push();
-  }
-
-  // ---- codes ----
-  if (codes.length) {
-    push("## Codes (nach Häufigkeit)");
-    push();
-    for (const c of codes) {
-      push(
-        `- \`${c.code.replace("#code/", "")}\` — ${c.quotes.length} Meaning Units, ${c.referencedBy.length} Referenzen`
-      );
-    }
-    push();
-  }
-
-  // ---- quality ----
-  if (lint.length) {
-    push("## Qualitätscheck (SOP-Regeln)");
-    push();
-    for (const f of lint) {
-      const label =
-        f.level === "error" ? "Verstoß" : f.level === "warning" ? "Warnung" : "Hinweis";
-      push(`- **${label} — ${f.rule}:** ${f.message} _(${f.note.title})_`);
+      push(`| ${m.participantId ?? n.title} | ${m.segment ?? "—"} | ${m.meaningUnits} |`);
     }
     push();
   }
@@ -266,6 +246,16 @@ export function buildMarkdownReport(
     push("## Offene Fragen & Research Gaps");
     push();
     for (const q of questions) push(`- ${q.question}`);
+    push();
+  }
+
+  // ---- requirements ----
+  if (project.requirements?.length) {
+    push("## Requirements Checklist");
+    push();
+    for (const r of project.requirements) {
+      push(`- [${r.done ? "x" : " "}] ${r.text.replace(/^\[(Rec|Need)\]\s*/, "")}`);
+    }
     push();
   }
 

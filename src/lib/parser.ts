@@ -146,13 +146,31 @@ const FM_TYPE: Record<string, NoteType> = {
   persona: "persona",
 };
 
-function classify(path: string, fm: Record<string, string>): NoteType {
+const TITLE_TYPE: [RegExp, NoteType][] = [
+  [/^interview\b/i, "interview"],
+  [/^theme\s*:/i, "theme"],
+  [/^pain\s*point\s*:/i, "pain-point"],
+  [/^need\s*:/i, "need"],
+  [/^insight\s*:/i, "insight"],
+  [/^recommendation\s*:/i, "recommendation"],
+  [/^persona\s*:/i, "persona"],
+];
+
+function classify(path: string, fm: Record<string, string>, body: string): NoteType {
   const parts = path.split("/");
   const folders = parts.slice(0, -1);
   // templates live inside a methods folder — folder wins over fm.typ there
   if (folders.some((f) => /template/i.test(f))) return "template";
   const typ = (fm["typ"] || fm["type"])?.toLowerCase();
   if (typ && FM_TYPE[typ]) return FM_TYPE[typ];
+  // a note filed in the wrong folder (e.g. a theme inside 07_personas)
+  // usually still announces its type in the H1 — trust that before the folder
+  const h1 = body.match(/^#\s+(.+)$/m)?.[1]?.trim();
+  if (h1) {
+    for (const [re, t] of TITLE_TYPE) {
+      if (re.test(h1)) return t;
+    }
+  }
   for (const folder of folders) {
     for (const [re, t] of FOLDER_TYPE) {
       if (re.test(folder)) return t;
@@ -162,9 +180,77 @@ function classify(path: string, fm: Record<string, string>): NoteType {
   return "other";
 }
 
+// ---- anonymization ----
+// Participant names must not appear anywhere in the prototype (feedback).
+// Replaces full names and single name tokens with the participant ID —
+// everywhere except inside [[wikilinks]] (targets must keep resolving).
+
+function anonymizeText(text: string, replacements: [RegExp, string][]): string {
+  if (replacements.length === 0) return text;
+  return text
+    .split(/(\[\[[^\]]*\]\])/)
+    .map((part) => {
+      if (part.startsWith("[[")) return part;
+      let out = part;
+      for (const [re, id] of replacements) out = out.replace(re, id);
+      return out;
+    })
+    .join("");
+}
+
+function buildNameReplacements(notes: Note[]): [RegExp, string][] {
+  const reps: [RegExp, string][] = [];
+  const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  for (const n of notes) {
+    if (n.type !== "interview") continue;
+    const id = n.frontmatter["teilnehmer_id"] || n.frontmatter["participant_id"];
+    const name = n.frontmatter["name"];
+    if (!id || !name) continue;
+    const tokens = name.split(/\s+/).filter((t) => t.length > 2);
+    // full name first (also reversed "Bauer, Markus"), then single tokens
+    if (tokens.length > 1) {
+      reps.push([new RegExp(esc(name), "g"), id]);
+      reps.push([new RegExp(esc([...tokens].reverse().join(", ")), "g"), id]);
+    }
+    for (const t of tokens) {
+      reps.push([new RegExp(`(?<![\\p{L}\\p{N}])${esc(t)}(?![\\p{L}\\p{N}])`, "gu"), id]);
+    }
+  }
+  return reps;
+}
+
+function anonymizeNotes(notes: Note[]): void {
+  const reps = buildNameReplacements(notes);
+  if (reps.length === 0) return;
+  for (const n of notes) {
+    const id = n.frontmatter["teilnehmer_id"] || n.frontmatter["participant_id"];
+    if (n.type === "interview" && id) {
+      n.title = `Interview ${id}`;
+    } else {
+      n.title = anonymizeText(n.title, reps);
+    }
+    n.body = anonymizeText(n.body, reps);
+    for (const q of n.quotes) q.text = anonymizeText(q.text, reps);
+    for (const key of Object.keys(n.fields)) {
+      n.fields[key] = anonymizeText(n.fields[key], reps);
+    }
+    for (const key of Object.keys(n.sections)) {
+      n.sections[key] = anonymizeText(n.sections[key], reps);
+    }
+    if (n.frontmatter["name"] && n.type === "interview" && id) {
+      n.frontmatter["name"] = id;
+    } else if (n.frontmatter["name"]) {
+      n.frontmatter["name"] = anonymizeText(n.frontmatter["name"], reps);
+    }
+  }
+}
+
 // ---------- zip -> vault ----------
 
-const SKIP_RE = /(^|\/)(\.obsidian|\.github|\.git|__MACOSX)(\/|$)|\.DS_Store/;
+// raw transcripts (archive) are skipped entirely: they contain full names
+// and are not needed for the evaluation (feedback: "Rohtranskripte nicht anzeigen")
+const SKIP_RE =
+  /(^|\/)(\.obsidian|\.github|\.git|__MACOSX)(\/|$)|\.DS_Store|(^|\/)[^/]*(archive|archiv)[^/]*\//i;
 
 export async function parseVaultZip(file: File | Blob, fileName: string): Promise<Vault> {
   const zip = await JSZip.loadAsync(file);
@@ -226,9 +312,12 @@ export async function parseVaultZip(file: File | Blob, fileName: string): Promis
   }
 
   for (const n of notes) {
-    n.type = classify(n.path, n.frontmatter);
+    n.type = classify(n.path, n.frontmatter, n.body);
     if (n.type === "other" && !n.path.includes("/")) n.type = "wiki";
   }
+
+  // participant names must not surface anywhere in the hub
+  anonymizeNotes(notes);
 
   // sort: by path for stable display
   notes.sort((a, b) => a.path.localeCompare(b.path, "de"));

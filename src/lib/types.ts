@@ -38,6 +38,17 @@ export interface Project {
   /** free-form team notes (markdown-ish plain text) */
   notes?: string;
   nextSteps?: NextStep[];
+  /** working file for the PDM team, seedable from recommendations/needs */
+  requirements?: NextStep[];
+  /** curated "killer quotes": note slug -> quote keys (see quoteKey()) */
+  starredQuotes?: Record<string, string[]>;
+  /** open questions hidden by the team (exact question text) */
+  hiddenQuestions?: string[];
+}
+
+/** stable identifier for a quote within a note (text prefix) */
+export function quoteKey(text: string): string {
+  return text.slice(0, 80);
 }
 
 /** read-only share link for one project's results */

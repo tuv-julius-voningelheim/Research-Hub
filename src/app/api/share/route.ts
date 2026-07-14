@@ -49,6 +49,8 @@ export async function GET(req: Request) {
         hasVault?: boolean;
         nextSteps?: unknown[];
         notes?: string;
+        starredQuotes?: Record<string, string[]>;
+        hiddenQuestions?: string[];
       }
     | undefined;
   if (!project) return new Response(null, { status: 404 });
@@ -70,6 +72,8 @@ export async function GET(req: Request) {
         status: project.status,
         method: project.method,
         createdAt: project.createdAt,
+        starredQuotes: project.starredQuotes ?? {},
+        hiddenQuestions: project.hiddenQuestions ?? [],
       },
       program: program?.name,
       division: division?.name,

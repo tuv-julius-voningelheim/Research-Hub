@@ -4,13 +4,12 @@
 // confidence × evidence), distributions, traceability and open questions.
 // Everything is computed from the parsed vault — no AI.
 
-import { Fragment, useMemo } from "react";
+import { Fragment, useMemo, useState } from "react";
 import {
   MATRIX_CONFIDENCES,
   MATRIX_SEVERITIES,
   byType,
   confidenceDistribution,
-  lintVault,
   needCategoryDistribution,
   openQuestions,
   rankPainPoints,
@@ -21,7 +20,7 @@ import {
   totalQuotes,
 } from "@/lib/analytics";
 import type { Note, Vault } from "@/lib/types";
-import { Card, ConfidenceBadge, LevelBadge, StatTile } from "@/components/ui";
+import { Card, ConfidenceBadge, LevelBadge, Modal, StatTile } from "@/components/ui";
 import { FlagIcon, QuoteIcon, UsersIcon } from "@/components/icons";
 import { TYPE_LABEL, TypePill } from "./NoteDrawer";
 
@@ -60,16 +59,22 @@ function BarRow({
   );
 }
 
-function EvidenceDots({ n, max = 3 }: { n: number; max?: number }) {
+function EvidenceDots({ n, max = 5 }: { n: number; max?: number }) {
+  // stays compact even for high evidence counts (feedback: 6+ broke the layout)
   return (
-    <span className="flex items-center gap-1" title={`${n} Interviews als Evidenz`}>
-      {Array.from({ length: max }).map((_, i) => (
+    <span
+      className="flex shrink-0 items-center gap-1"
+      title={`Evidenz aus ${n} Interview(s)`}
+    >
+      {Array.from({ length: Math.min(n, max) || 1 }).map((_, i) => (
         <span
           key={i}
-          className={`h-2.5 w-2.5 rounded-full ${i < n ? "bg-[#0a5cd5]" : "bg-neutral-200"}`}
+          className={`h-2 w-2 rounded-full ${i < n ? "bg-[#0057b8]" : "bg-neutral-200"}`}
         />
       ))}
-      {n > max && <span className="text-xs font-bold text-neutral-500">+{n - max}</span>}
+      {n > max && (
+        <span className="text-[11px] font-bold text-neutral-500">+{n - max}</span>
+      )}
     </span>
   );
 }
@@ -77,9 +82,15 @@ function EvidenceDots({ n, max = 3 }: { n: number; max?: number }) {
 export default function Overview({
   vault,
   onOpen,
+  curation,
 }: {
   vault: Vault;
   onOpen: (n: Note) => void;
+  /** optional team curation: hide noisy open questions (app only) */
+  curation?: {
+    hiddenQuestions?: string[];
+    onToggleQuestion?: (question: string) => void;
+  };
 }) {
   const types = useMemo(() => byType(vault), [vault]);
   const ranked = useMemo(() => rankPainPoints(vault), [vault]);
@@ -91,10 +102,17 @@ export default function Overview({
   const needCats = useMemo(() => needCategoryDistribution(vault), [vault]);
   const quotes = useMemo(() => totalQuotes(vault), [vault]);
   const matrix = useMemo(() => severityConfidenceMatrix(vault), [vault]);
-  const lint = useMemo(() => lintVault(vault), [vault]);
-  const lintErrors = lint.filter((f) => f.level === "error").length;
-  const lintWarnings = lint.filter((f) => f.level === "warning").length;
   const matrixMax = Math.max(1, ...[...matrix.values()].map((v) => v.length));
+  const [matrixCell, setMatrixCell] = useState<{ label: string; notes: Note[] } | null>(
+    null
+  );
+
+  const hiddenQuestions = curation?.hiddenQuestions ?? [];
+  const visibleQuestions = questions.filter(
+    (q) => !hiddenQuestions.includes(q.question)
+  );
+  const hiddenCount = questions.length - visibleQuestions.length;
+  const [showHidden, setShowHidden] = useState(false);
 
   const maxSeverity = Math.max(1, ...severityDist.map((d) => d.count));
   const maxNeed = Math.max(1, ...needCats.map((d) => d.count));
@@ -243,7 +261,12 @@ export default function Overview({
                         key={conf}
                         type="button"
                         disabled={notes.length === 0}
-                        onClick={() => notes[0] && onOpen(notes[0])}
+                        onClick={() =>
+                          setMatrixCell({
+                            label: `Severity ${sev} × Confidence ${conf}`,
+                            notes,
+                          })
+                        }
                         title={notes.map((n) => n.title).join("\n")}
                         className={`flex h-14 items-center justify-center rounded-xl text-base font-extrabold transition-transform ${
                           notes.length > 0 ? "cursor-pointer hover:scale-[1.03]" : ""
@@ -258,20 +281,6 @@ export default function Overview({
               ))}
             </div>
           </div>
-        </Card>
-      )}
-
-      {/* quality summary */}
-      {(lintErrors > 0 || lintWarnings > 0) && (
-        <Card className="flex items-center gap-3 border-amber-200 bg-amber-50/50 p-4">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#92600a" strokeWidth="2">
-            <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01" />
-          </svg>
-          <span className="flex-1 text-sm font-semibold text-amber-900">
-            Qualitätscheck: {lintErrors} {lintErrors === 1 ? "Verstoß" : "Verstöße"} und{" "}
-            {lintWarnings} {lintWarnings === 1 ? "Warnung" : "Warnungen"} gegen die
-            SOP-Regeln gefunden.
-          </span>
         </Card>
       )}
 
@@ -365,36 +374,97 @@ export default function Overview({
         </section>
       )}
 
-      {/* open questions */}
+      {/* open questions — hidable per team curation */}
       {questions.length > 0 && (
         <section>
-          <h3 className="mb-3 text-base font-bold text-neutral-900">
-            Offene Fragen &amp; Research Gaps
-            <span className="ml-2 align-middle text-xs font-semibold text-neutral-400">
-              {questions.length}
-            </span>
-          </h3>
+          <div className="mb-3 flex items-baseline justify-between gap-3">
+            <h3 className="text-base font-bold text-neutral-900">
+              Offene Fragen &amp; Research Gaps
+              <span className="ml-2 align-middle text-xs font-semibold text-neutral-400">
+                {visibleQuestions.length}
+              </span>
+            </h3>
+            {hiddenCount > 0 && curation?.onToggleQuestion && (
+              <button
+                type="button"
+                onClick={() => setShowHidden((v) => !v)}
+                className="cursor-pointer text-xs font-semibold text-neutral-400 hover:text-neutral-600"
+              >
+                {showHidden ? "Ausgeblendete verbergen" : `${hiddenCount} ausgeblendet — anzeigen`}
+              </button>
+            )}
+          </div>
           <Card className="divide-y divide-neutral-100">
-            {questions.map((q, i) => (
-              <div key={i} className="flex items-start gap-3 px-4 py-3">
-                <span className="mt-0.5 shrink-0 text-[#a35300]">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01" />
-                  </svg>
-                </span>
-                <span className="flex-1 text-sm text-neutral-700">{q.question}</span>
-                <button
-                  type="button"
-                  onClick={() => onOpen(q.from)}
-                  className="shrink-0 cursor-pointer"
+            {(showHidden ? questions : visibleQuestions).map((q, i) => {
+              const isHidden = hiddenQuestions.includes(q.question);
+              return (
+                <div
+                  key={i}
+                  className={`group/oq flex items-start gap-3 px-4 py-3 ${isHidden ? "opacity-45" : ""}`}
                 >
-                  <TypePill type={q.from.type} />
-                </button>
-              </div>
-            ))}
+                  <span className="mt-0.5 shrink-0 text-[#a35300]">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01" />
+                    </svg>
+                  </span>
+                  <span className="flex-1 text-sm text-neutral-700">{q.question}</span>
+                  {curation?.onToggleQuestion && (
+                    <button
+                      type="button"
+                      title={isHidden ? "Frage wieder einblenden" : "Frage ausblenden"}
+                      onClick={() => curation.onToggleQuestion?.(q.question)}
+                      className={`shrink-0 cursor-pointer rounded-md p-1 transition-all ${
+                        isHidden
+                          ? "text-neutral-400 hover:text-neutral-700"
+                          : "text-neutral-300 opacity-0 hover:text-neutral-600 group-hover/oq:opacity-100"
+                      }`}
+                    >
+                      {isHidden ? (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      ) : (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 10 8 10 8a13.16 13.16 0 0 1-1.67 2.68M6.61 6.61A13.526 13.526 0 0 0 2 12s3 8 10 8a9.74 9.74 0 0 0 5.39-1.61M2 2l20 20" />
+                        </svg>
+                      )}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => onOpen(q.from)}
+                    className="shrink-0 cursor-pointer"
+                  >
+                    <TypePill type={q.from.type} />
+                  </button>
+                </div>
+              );
+            })}
           </Card>
         </section>
+      )}
+
+      {/* matrix cell picker */}
+      {matrixCell && (
+        <Modal title={matrixCell.label} onClose={() => setMatrixCell(null)}>
+          <div className="space-y-1.5">
+            {matrixCell.notes.map((n) => (
+              <button
+                key={n.slug}
+                type="button"
+                onClick={() => {
+                  setMatrixCell(null);
+                  onOpen(n);
+                }}
+                className="block w-full cursor-pointer rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-neutral-800 ring-1 ring-neutral-200 transition-colors hover:bg-blue-50/60 hover:ring-blue-200"
+              >
+                {n.title}
+              </button>
+            ))}
+          </div>
+        </Modal>
       )}
     </div>
   );

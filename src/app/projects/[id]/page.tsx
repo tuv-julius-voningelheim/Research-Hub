@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useMemo, useState } from "react";
-import { byType, codesIndex, lintVault, notesOf, slugIndex } from "@/lib/analytics";
+import { byType, notesOf, slugIndex } from "@/lib/analytics";
 import { buildMarkdownReport, downloadTextFile } from "@/lib/export";
-import CodesTab from "@/components/project/CodesTab";
+import { quoteKey } from "@/lib/types";
+import InsightsRecsTab from "@/components/project/InsightsRecsTab";
 import NotesTab from "@/components/project/NotesTab";
-import QualityTab from "@/components/project/QualityTab";
+import RequirementsTab from "@/components/project/RequirementsTab";
 import { Modal, btnSecondary, inputCls } from "@/components/ui";
 import { divisionOf, programOf, useHub } from "@/lib/store";
 import type { Note, NoteType, Vault } from "@/lib/types";
@@ -24,12 +25,10 @@ const TABS: { key: string; label: string; types: NoteType[] }[] = [
   { key: "themes", label: "Themes", types: ["theme"] },
   { key: "pain-points", label: "Pain Points", types: ["pain-point"] },
   { key: "needs", label: "Needs", types: ["need"] },
-  { key: "insights", label: "Insights", types: ["insight"] },
-  { key: "recommendations", label: "Recommendations", types: ["recommendation"] },
+  { key: "insights-recs", label: "Insights & Recs", types: ["insight", "recommendation"] },
   { key: "personas", label: "Personas", types: ["persona"] },
-  { key: "interviews", label: "Interviews", types: ["interview", "archive"] },
-  { key: "codes", label: "Codes", types: [] },
-  { key: "quality", label: "Qualität", types: [] },
+  { key: "interviews", label: "Interviews", types: ["interview"] },
+  { key: "requirements", label: "Requirements", types: [] },
   { key: "notes", label: "Notizen", types: [] },
   { key: "files", label: "Files", types: [] },
 ];
@@ -88,7 +87,9 @@ function FilesTab({ vault, onOpen }: { vault: Vault; onOpen: (n: Note) => void }
                 <span className="text-neutral-400">{FileIcon}</span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold text-neutral-800">
-                    {n.path.split("/").pop()}
+                    {/* interview filenames contain participant names — show the
+                        anonymized title instead */}
+                    {n.type === "interview" ? n.title : n.path.split("/").pop()}
                   </span>
                 </span>
                 <TypePill type={n.type} />
@@ -105,8 +106,17 @@ function ProjectDetail() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { state, ready, mode, attachVault, updateProject, createShare, removeShare } =
-    useHub();
+  const {
+    state,
+    ready,
+    mode,
+    attachVault,
+    updateProject,
+    createShare,
+    removeShare,
+    toggleQuoteStar,
+    toggleQuestionHidden,
+  } = useHub();
   const [shareOpen, setShareOpen] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
 
@@ -135,11 +145,6 @@ function ProjectDetail() {
   );
 
   const types = useMemo(() => byType(vault), [vault]);
-  const codeCount = useMemo(() => codesIndex(vault).length, [vault]);
-  const lintCount = useMemo(
-    () => lintVault(vault).filter((f) => f.level !== "info").length,
-    [vault]
-  );
 
   if (!ready) return null;
   if (!project) {
@@ -282,15 +287,13 @@ function ProjectDetail() {
             <div className="flex min-w-max gap-0.5 border-b border-neutral-200">
               {TABS.map((t) => {
                 const count =
-                  t.key === "codes"
-                    ? codeCount
-                    : t.key === "quality"
-                      ? lintCount
-                      : t.key === "notes"
-                        ? (project.nextSteps?.filter((s) => !s.done).length ?? 0)
-                        : t.types.length > 0
-                          ? t.types.reduce((s, ty) => s + types[ty].length, 0)
-                          : undefined;
+                  t.key === "notes"
+                    ? (project.nextSteps?.filter((s) => !s.done).length ?? 0)
+                    : t.key === "requirements"
+                      ? (project.requirements?.filter((s) => !s.done).length ?? 0)
+                      : t.types.length > 0
+                        ? t.types.reduce((s, ty) => s + types[ty].length, 0)
+                        : undefined;
                 const active = tab === t.key;
                 return (
                   <button
@@ -305,13 +308,7 @@ function ProjectDetail() {
                   >
                     {t.label}
                     {count !== undefined && count > 0 && (
-                      <span
-                        className={`ml-1.5 text-xs font-medium ${
-                          t.key === "quality"
-                            ? "rounded-full bg-amber-100 px-1.5 py-0.5 text-amber-800"
-                            : "text-neutral-400"
-                        }`}
-                      >
+                      <span className="ml-1.5 text-xs font-medium text-neutral-400">
                         {count}
                       </span>
                     )}
@@ -322,9 +319,24 @@ function ProjectDetail() {
           </div>
 
           {/* tab content */}
-          {tab === "overview" && <Overview vault={vault} onOpen={openNoteFn} />}
-          {tab === "codes" && <CodesTab vault={vault} onOpen={openNoteFn} />}
-          {tab === "quality" && <QualityTab vault={vault} onOpen={openNoteFn} />}
+          {tab === "overview" && (
+            <Overview
+              vault={vault}
+              onOpen={openNoteFn}
+              curation={{
+                hiddenQuestions: project.hiddenQuestions,
+                onToggleQuestion: (q) => toggleQuestionHidden(project.id, q),
+              }}
+            />
+          )}
+          {tab === "insights-recs" && (
+            <InsightsRecsTab
+              vault={vault}
+              onOpen={openNoteFn}
+              starredQuotes={project.starredQuotes}
+            />
+          )}
+          {tab === "requirements" && <RequirementsTab project={project} />}
           {tab === "notes" && <NotesTab project={project} />}
           {tab === "files" && (
             <div className="space-y-4">
@@ -332,7 +344,7 @@ function ProjectDetail() {
               <FilesTab vault={vault} onOpen={openNoteFn} />
             </div>
           )}
-          {TABS.filter((t) => t.types.length > 0).map((t) => {
+          {TABS.filter((t) => t.types.length > 0 && t.key !== "insights-recs").map((t) => {
             if (tab !== t.key) return null;
             const notes = t.types.flatMap((ty) => types[ty]);
             return notes.length === 0 ? (
@@ -349,6 +361,7 @@ function ProjectDetail() {
                     note={n}
                     onOpen={openNoteFn}
                     showType={t.types.length > 1}
+                    starred={project.starredQuotes?.[n.slug]}
                   />
                 ))}
               </div>
@@ -363,6 +376,12 @@ function ProjectDetail() {
           note={openNote}
           onNavigate={(slug) => setQuery({ note: slug })}
           onClose={() => setQuery({ note: null })}
+          quoteCuration={{
+            isStarred: (text) =>
+              (project.starredQuotes?.[openNote.slug] ?? []).includes(quoteKey(text)),
+            onToggle: (text) =>
+              toggleQuoteStar(project.id, openNote.slug, quoteKey(text)),
+          }}
         />
       )}
 

@@ -49,16 +49,26 @@ export function TypePill({ type }: { type: string }) {
   );
 }
 
+/** strip "## Referenz…" sections — internal methodology pointers, not results */
+function stripReferenz(body: string): string {
+  return body.replace(/^##\s+Referenz[^\n]*\n[\s\S]*?(?=^##\s|(?![\s\S]))/gm, "");
+}
+
 export default function NoteDrawer({
   vault,
   note,
   onNavigate,
   onClose,
+  quoteCuration,
 }: {
   vault: Vault;
   note: Note;
   onNavigate: (slug: string) => void;
   onClose: () => void;
+  quoteCuration?: {
+    isStarred: (text: string) => boolean;
+    onToggle: (text: string) => void;
+  };
 }) {
   const idx = useMemo(() => slugIndex(vault), [vault]);
   const incoming = useMemo(() => backlinks(vault, note.slug), [vault, note.slug]);
@@ -101,10 +111,12 @@ export default function NoteDrawer({
             {note.title}
           </h2>
           <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-neutral-500">
-            <span>{note.path}</span>
-            {fm["datum"] && <span>Datum: {fm["datum"]}</span>}
+            {/* interview filenames contain participant names — folder only */}
+            <span>{note.type === "interview" ? note.folder : note.path}</span>
             {fm["segment"] && <span>Segment: {fm["segment"]}</span>}
-            {fm["kategorie"] && <span>Kategorie: {fm["kategorie"]}</span>}
+            {(fm["kategorie"] || note.fields["Kategorie"]) && (
+              <span>Kategorie: {fm["kategorie"] || note.fields["Kategorie"]}</span>
+            )}
             {fm["status"] && <span>Status: {fm["status"]}</span>}
             {note.quotes.length > 0 && <span>{note.quotes.length} Zitate</span>}
           </div>
@@ -118,13 +130,17 @@ export default function NoteDrawer({
             </pre>
           ) : (
             <Markdown
-              // drawer header already shows the title — drop the leading H1
-              text={note.body.replace(/^\s*#\s+[^\n]*\n/, "")}
+              // drawer header already shows the title — drop the leading H1;
+              // "Referenz" sections are methodology noise, hide them
+              text={stripReferenz(note.body.replace(/^\s*#\s+[^\n]*\n/, ""))}
               resolve={(t) => idx.has(t.toLowerCase())}
               onNavigate={(t) => {
                 const target = idx.get(t.toLowerCase());
                 if (target) onNavigate(target.slug);
               }}
+              // anonymized note titles as link labels (raw slugs contain names)
+              labelFor={(t) => idx.get(t.toLowerCase())?.title}
+              quoteCuration={quoteCuration}
             />
           )}
 

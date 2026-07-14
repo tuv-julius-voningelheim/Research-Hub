@@ -11,12 +11,20 @@ export interface MarkdownProps {
   /** slug (lowercase) -> exists? Used to style resolvable wikilinks. */
   resolve?: (target: string) => boolean;
   onNavigate?: (target: string) => void;
+  /** pretty (anonymized) label for a wikilink target — falls back to raw */
+  labelFor?: (target: string) => string | undefined;
+  /** quote curation: star "killer quotes" (key = quote text prefix) */
+  quoteCuration?: {
+    isStarred: (text: string) => boolean;
+    onToggle: (text: string) => void;
+  };
 }
 
 function renderInline(
   text: string,
   resolve?: (t: string) => boolean,
-  onNavigate?: (t: string) => void
+  onNavigate?: (t: string) => void,
+  labelFor?: (t: string) => string | undefined
 ): ReactNode[] {
   const out: ReactNode[] = [];
   // tokenize wikilinks, bold, italics, inline code, code-tags
@@ -29,7 +37,7 @@ function renderInline(
     if (m.index > last) out.push(text.slice(last, m.index));
     if (m[1] !== undefined) {
       const target = m[1].trim();
-      const label = (m[2] || target).trim();
+      const label = (m[2]?.trim() || labelFor?.(target) || target).trim();
       const ok = resolve ? resolve(target) : false;
       out.push(
         ok ? (
@@ -48,7 +56,9 @@ function renderInline(
         )
       );
     } else if (m[3] !== undefined) {
-      out.push(<strong key={key++}>{renderInline(m[3], resolve, onNavigate)}</strong>);
+      out.push(
+        <strong key={key++}>{renderInline(m[3], resolve, onNavigate, labelFor)}</strong>
+      );
     } else if (m[4] !== undefined) {
       out.push(
         <code key={key++} className="rounded bg-neutral-100 px-1 py-0.5 text-[0.85em]">
@@ -71,7 +81,13 @@ function renderInline(
   return out;
 }
 
-export default function Markdown({ text, resolve, onNavigate }: MarkdownProps) {
+export default function Markdown({
+  text,
+  resolve,
+  onNavigate,
+  labelFor,
+  quoteCuration,
+}: MarkdownProps) {
   // defensive: vaults stored before CRLF normalization still contain \r,
   // which breaks `.*$` matching in JS — strip it here as well
   const lines = text.replace(/\r\n?/g, "\n").split("\n");
@@ -79,7 +95,7 @@ export default function Markdown({ text, resolve, onNavigate }: MarkdownProps) {
   let i = 0;
   let key = 0;
 
-  const inline = (t: string) => renderInline(t, resolve, onNavigate);
+  const inline = (t: string) => renderInline(t, resolve, onNavigate, labelFor);
 
   while (i < lines.length) {
     const line = lines[i];
@@ -130,12 +146,44 @@ export default function Markdown({ text, resolve, onNavigate }: MarkdownProps) {
           i++;
         }
       }
+      const quoteText = quote.join(" ").trim();
+      // normalize like the parser does (strip attribution + quote marks)
+      // so curation keys match note.quotes[].text
+      let plainQuote = quoteText;
+      const attr = plainQuote.match(/[—–]\s*([^—–]+)$/);
+      if (attr && attr[1].trim().length <= 80) {
+        plainQuote = plainQuote.slice(0, attr.index).trim();
+      }
+      plainQuote = plainQuote.replace(/^[„"“']+/, "").replace(/["“”']+$/, "");
+      const starred = quoteCuration?.isStarred(plainQuote) ?? false;
       blocks.push(
         <blockquote
           key={key++}
-          className="my-3 rounded-r-lg border-l-4 border-[#0a5cd5] bg-blue-50/60 px-4 py-2.5 text-[0.925rem] italic leading-relaxed text-neutral-700"
+          className={`group/q relative my-3 rounded-r-lg border-l-4 px-4 py-2.5 text-[0.925rem] italic leading-relaxed text-neutral-700 ${
+            starred
+              ? "border-amber-400 bg-amber-50/70"
+              : "border-[#0a5cd5] bg-blue-50/60"
+          }`}
         >
-          {inline(quote.join(" "))}
+          {quoteCuration && (
+            <button
+              type="button"
+              title={starred ? "Markierung entfernen" : "Als Killer-Zitat markieren"}
+              onClick={() => quoteCuration.onToggle(plainQuote)}
+              className={`absolute right-2 top-2 cursor-pointer rounded-md p-1 not-italic transition-all ${
+                starred
+                  ? "text-amber-500"
+                  : "text-neutral-300 opacity-0 hover:text-amber-500 group-hover/q:opacity-100"
+              }`}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill={starred ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
+                <path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.9L12 17.8 5.8 21l1.2-6.9-5-4.9 6.9-1z" />
+              </svg>
+            </button>
+          )}
+          <span className={quoteCuration ? "block pr-6" : undefined}>
+            {inline(quoteText)}
+          </span>
           {code && (
             <div className="mt-1.5 not-italic">
               <span className="inline-block rounded-full bg-white px-2 py-0.5 text-xs font-medium text-slate-600 ring-1 ring-slate-200">

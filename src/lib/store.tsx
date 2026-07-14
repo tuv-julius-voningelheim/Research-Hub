@@ -71,6 +71,12 @@ interface HubContextValue {
   toggleNextStep: (projectId: string, stepId: string) => void;
   removeNextStep: (projectId: string, stepId: string) => void;
   setNotes: (projectId: string, notes: string) => void;
+  addRequirement: (projectId: string, text: string) => void;
+  toggleRequirement: (projectId: string, stepId: string) => void;
+  removeRequirement: (projectId: string, stepId: string) => void;
+  seedRequirements: (projectId: string, texts: string[]) => void;
+  toggleQuoteStar: (projectId: string, noteSlug: string, key: string) => void;
+  toggleQuestionHidden: (projectId: string, question: string) => void;
   createShare: (projectId: string) => ShareLink;
   removeShare: (token: string) => void;
 }
@@ -238,6 +244,8 @@ export function HubProvider({ children }: { children: ReactNode }) {
               baseRev: revRef.current,
               ...stripVaults(stateRef.current),
             }),
+            // survive page navigations that happen right after an edit
+            keepalive: true,
           });
           if (res.status === 409) {
             setConflict(true);
@@ -467,6 +475,87 @@ export function HubProvider({ children }: { children: ReactNode }) {
     [patchProject]
   );
 
+  const addRequirement = useCallback(
+    (projectId: string, text: string) => {
+      const step: NextStep = { id: uid(), text, done: false, createdAt: Date.now() };
+      patchProject(projectId, (p) => ({
+        ...p,
+        requirements: [...(p.requirements ?? []), step],
+      }));
+    },
+    [patchProject]
+  );
+
+  const toggleRequirement = useCallback(
+    (projectId: string, stepId: string) => {
+      patchProject(projectId, (p) => ({
+        ...p,
+        requirements: (p.requirements ?? []).map((st) =>
+          st.id === stepId ? { ...st, done: !st.done } : st
+        ),
+      }));
+    },
+    [patchProject]
+  );
+
+  const removeRequirement = useCallback(
+    (projectId: string, stepId: string) => {
+      patchProject(projectId, (p) => ({
+        ...p,
+        requirements: (p.requirements ?? []).filter((st) => st.id !== stepId),
+      }));
+    },
+    [patchProject]
+  );
+
+  const seedRequirements = useCallback(
+    (projectId: string, texts: string[]) => {
+      patchProject(projectId, (p) => {
+        const existing = new Set((p.requirements ?? []).map((r) => r.text));
+        const added = texts
+          .filter((t) => !existing.has(t))
+          .map((text, i) => ({
+            id: uid() + i.toString(36),
+            text,
+            done: false,
+            createdAt: Date.now(),
+          }));
+        return { ...p, requirements: [...(p.requirements ?? []), ...added] };
+      });
+    },
+    [patchProject]
+  );
+
+  const toggleQuoteStar = useCallback(
+    (projectId: string, noteSlug: string, key: string) => {
+      patchProject(projectId, (p) => {
+        const map = { ...(p.starredQuotes ?? {}) };
+        const list = map[noteSlug] ?? [];
+        map[noteSlug] = list.includes(key)
+          ? list.filter((k) => k !== key)
+          : [...list, key];
+        if (map[noteSlug].length === 0) delete map[noteSlug];
+        return { ...p, starredQuotes: map };
+      });
+    },
+    [patchProject]
+  );
+
+  const toggleQuestionHidden = useCallback(
+    (projectId: string, question: string) => {
+      patchProject(projectId, (p) => {
+        const hidden = p.hiddenQuestions ?? [];
+        return {
+          ...p,
+          hiddenQuestions: hidden.includes(question)
+            ? hidden.filter((q) => q !== question)
+            : [...hidden, question],
+        };
+      });
+    },
+    [patchProject]
+  );
+
   const createShare = useCallback(
     (projectId: string) => {
       const share: ShareLink = {
@@ -512,6 +601,12 @@ export function HubProvider({ children }: { children: ReactNode }) {
         toggleNextStep,
         removeNextStep,
         setNotes,
+        addRequirement,
+        toggleRequirement,
+        removeRequirement,
+        seedRequirements,
+        toggleQuoteStar,
+        toggleQuestionHidden,
         createShare,
         removeShare,
       }}

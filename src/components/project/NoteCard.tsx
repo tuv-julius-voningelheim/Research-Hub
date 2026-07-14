@@ -4,7 +4,7 @@
 // badges and the first representative quote.
 
 import { interviewMeta } from "@/lib/analytics";
-import type { Note } from "@/lib/types";
+import { quoteKey, type Note } from "@/lib/types";
 import { Card, ConfidenceBadge, LevelBadge } from "@/components/ui";
 import { TypePill } from "./NoteDrawer";
 
@@ -23,14 +23,23 @@ export default function NoteCard({
   note,
   onOpen,
   showType,
+  starred,
 }: {
   note: Note;
   onOpen: (n: Note) => void;
   showType?: boolean;
+  /** curated quote keys for this note — preferred for the preview */
+  starred?: string[];
 }) {
   const fm = note.frontmatter;
   const summary = summaryOf(note);
-  const quote = note.quotes[0];
+  // prefer a curated "killer quote" over the first one
+  const quote =
+    (starred?.length
+      ? note.quotes.find((q) => starred.includes(quoteKey(q.text)))
+      : undefined) ?? note.quotes[0];
+  const isStarredQuote = !!(quote && starred?.includes(quoteKey(quote.text)));
+  const kategorie = fm["kategorie"] || note.fields["Kategorie"];
   const meta = note.type === "interview" ? interviewMeta(note) : undefined;
 
   return (
@@ -45,9 +54,9 @@ export default function NoteCard({
           <LevelBadge level={fm["severity"]} prefix="Severity" />
           <LevelBadge level={fm["priority"]} prefix="Priority" />
           <ConfidenceBadge level={fm["confidence"]} />
-          {fm["kategorie"] && (
+          {kategorie && (
             <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-amber-200">
-              {fm["kategorie"]}
+              {kategorie}
             </span>
           )}
           {fm["status"] && (
@@ -64,10 +73,7 @@ export default function NoteCard({
           <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-neutral-500">
             {meta.participantId && <span>{meta.participantId}</span>}
             {meta.segment && <span>{meta.segment}</span>}
-            {meta.date && <span>{meta.date}</span>}
-            <span>
-              {meta.meaningUnits} Meaning Units · {meta.codes} Codes
-            </span>
+            <span>{meta.meaningUnits} Meaning Units</span>
           </div>
         ) : (
           summary && (
@@ -78,7 +84,14 @@ export default function NoteCard({
         )}
 
         {quote && note.type !== "interview" && (
-          <blockquote className="mt-3 border-l-2 border-blue-200 pl-3 text-xs italic leading-relaxed text-neutral-500">
+          <blockquote
+            className={`mt-3 border-l-2 pl-3 text-xs italic leading-relaxed ${
+              isStarredQuote
+                ? "border-amber-300 text-neutral-600"
+                : "border-blue-200 text-neutral-500"
+            }`}
+          >
+            {isStarredQuote && <span className="mr-1 not-italic text-amber-500">★</span>}
             „{quote.text.length > 180 ? quote.text.slice(0, 180) + "…" : quote.text}“
             {quote.source && (
               <span className="ml-1 font-semibold not-italic text-neutral-400">

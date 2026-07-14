@@ -8,6 +8,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { byType, slugIndex } from "@/lib/analytics";
 import type { Note, NoteType, Vault } from "@/lib/types";
+import InsightsRecsTab from "@/components/project/InsightsRecsTab";
 import NoteCard from "@/components/project/NoteCard";
 import NoteDrawer from "@/components/project/NoteDrawer";
 import Overview from "@/components/project/Overview";
@@ -19,6 +20,8 @@ interface ShareData {
     description?: string;
     status: string;
     method?: string;
+    starredQuotes?: Record<string, string[]>;
+    hiddenQuestions?: string[];
   };
   program?: string;
   division?: string;
@@ -30,8 +33,7 @@ const TABS: { key: string; label: string; types: NoteType[] }[] = [
   { key: "themes", label: "Themes", types: ["theme"] },
   { key: "pain-points", label: "Pain Points", types: ["pain-point"] },
   { key: "needs", label: "Needs", types: ["need"] },
-  { key: "insights", label: "Insights", types: ["insight"] },
-  { key: "recommendations", label: "Recommendations", types: ["recommendation"] },
+  { key: "insights-recs", label: "Insights & Recs", types: ["insight", "recommendation"] },
   { key: "personas", label: "Personas", types: ["persona"] },
 ];
 
@@ -146,18 +148,38 @@ export default function SharePage() {
               </div>
             </div>
 
-            {tab === "overview" && <Overview vault={vault} onOpen={openFn} />}
-            {TABS.filter((t) => t.types.length > 0).map((t) => {
-              if (tab !== t.key) return null;
-              const notes = t.types.flatMap((ty) => types[ty]);
-              return (
-                <div key={t.key} className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                  {notes.map((n) => (
-                    <NoteCard key={n.path} note={n} onOpen={openFn} />
-                  ))}
-                </div>
-              );
-            })}
+            {tab === "overview" && (
+              <Overview
+                vault={vault}
+                onOpen={openFn}
+                curation={{ hiddenQuestions: data.project.hiddenQuestions }}
+              />
+            )}
+            {tab === "insights-recs" && (
+              <InsightsRecsTab
+                vault={vault}
+                onOpen={openFn}
+                starredQuotes={data.project.starredQuotes}
+              />
+            )}
+            {TABS.filter((t) => t.types.length > 0 && t.key !== "insights-recs").map(
+              (t) => {
+                if (tab !== t.key) return null;
+                const notes = t.types.flatMap((ty) => types[ty]);
+                return (
+                  <div key={t.key} className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                    {notes.map((n) => (
+                      <NoteCard
+                        key={n.path}
+                        note={n}
+                        onOpen={openFn}
+                        starred={data.project.starredQuotes?.[n.slug]}
+                      />
+                    ))}
+                  </div>
+                );
+              }
+            )}
           </div>
         )}
 

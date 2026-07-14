@@ -9,9 +9,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
-  codesIndex,
   interviewMeta,
-  lintVault,
   notesOf,
   openQuestions,
   rankPainPoints,
@@ -19,6 +17,7 @@ import {
   themeSummaries,
   totalQuotes,
 } from "@/lib/analytics";
+import { quoteKey } from "@/lib/types";
 import { divisionOf, programOf, useHub } from "@/lib/store";
 import type { Note } from "@/lib/types";
 
@@ -46,9 +45,8 @@ const SECTIONS: { key: string; label: string; default: boolean }[] = [
   { key: "recommendations", label: "Recommendations", default: true },
   { key: "personas", label: "Personas", default: false },
   { key: "interviews", label: "Interviews", default: false },
-  { key: "codes", label: "Top-Codes", default: false },
-  { key: "quality", label: "Qualitätscheck", default: false },
   { key: "questions", label: "Offene Fragen", default: true },
+  { key: "requirements", label: "Requirements", default: false },
   { key: "notes", label: "Next Steps & Notizen", default: true },
 ];
 
@@ -56,8 +54,11 @@ function SectionH2({ children }: { children: React.ReactNode }) {
   return <h2 className="mb-4 text-lg font-bold text-neutral-900">{children}</h2>;
 }
 
-function QuoteBlock({ note }: { note: Note }) {
-  const q = note.quotes[0];
+function QuoteBlock({ note, starred }: { note: Note; starred?: string[] }) {
+  const q =
+    (starred?.length
+      ? note.quotes.find((x) => starred.includes(quoteKey(x.text)))
+      : undefined) ?? note.quotes[0];
   if (!q) return null;
   return (
     <blockquote className="mt-2 border-l-2 border-[#0057b8] pl-3 text-sm italic leading-relaxed text-neutral-600">
@@ -80,9 +81,12 @@ export default function ReportPage() {
   const ranked = useMemo(() => rankPainPoints(vault), [vault]);
   const themes = useMemo(() => themeSummaries(vault), [vault]);
   const recs = useMemo(() => recTraces(vault), [vault]);
-  const questions = useMemo(() => openQuestions(vault), [vault]);
-  const codes = useMemo(() => codesIndex(vault).slice(0, 15), [vault]);
-  const lint = useMemo(() => lintVault(vault), [vault]);
+  const hidden = project?.hiddenQuestions ?? [];
+  const questions = useMemo(
+    () => openQuestions(vault).filter((q) => !hidden.includes(q.question)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [vault, project?.hiddenQuestions]
+  );
 
   if (!ready) return null;
   if (!project) {
@@ -102,7 +106,6 @@ export default function ReportPage() {
   const needs = vault ? notesOf(vault, "need") : [];
   const insights = vault ? notesOf(vault, "insight") : [];
   const personas = vault ? notesOf(vault, "persona") : [];
-  const codesMax = Math.max(1, ...codes.map((c) => c.total));
 
   return (
     <div className="min-h-screen bg-neutral-100 print:bg-white">
@@ -239,7 +242,10 @@ export default function ReportPage() {
                           {stripWiki(t.note.sections["Definition"].split("\n")[0])}
                         </p>
                       )}
-                      <QuoteBlock note={t.note} />
+                      <QuoteBlock
+                        note={t.note}
+                        starred={project.starredQuotes?.[t.note.slug]}
+                      />
                     </div>
                   ))}
                 </div>
@@ -396,7 +402,6 @@ export default function ReportPage() {
                       <tr className="bg-neutral-50 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
                         <th className="px-3 py-2">ID</th>
                         <th className="px-3 py-2">Segment</th>
-                        <th className="px-3 py-2">Datum</th>
                         <th className="px-3 py-2 text-right">Meaning Units</th>
                       </tr>
                     </thead>
@@ -409,7 +414,6 @@ export default function ReportPage() {
                               {m.participantId ?? n.title}
                             </td>
                             <td className="px-3 py-2 text-neutral-600">{m.segment ?? "—"}</td>
-                            <td className="px-3 py-2 text-neutral-600">{m.date ?? "—"}</td>
                             <td className="px-3 py-2 text-right text-neutral-600">
                               {m.meaningUnits}
                             </td>
@@ -419,57 +423,6 @@ export default function ReportPage() {
                     </tbody>
                   </table>
                 </div>
-              </section>
-            )}
-
-            {on.codes && codes.length > 0 && (
-              <section className="mt-10 break-inside-avoid">
-                <SectionH2>Top-Codes</SectionH2>
-                <div className="space-y-1.5">
-                  {codes.map((c) => (
-                    <div key={c.code} className="flex items-center gap-3">
-                      <div className="w-56 shrink-0 truncate text-xs font-semibold text-neutral-700 sm:w-72">
-                        {c.code.replace("#code/", "")}
-                      </div>
-                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-neutral-100">
-                        <div
-                          className="h-full rounded-full bg-[#2a78d6]"
-                          style={{ width: `${(c.total / codesMax) * 100}%` }}
-                        />
-                      </div>
-                      <div className="w-6 text-right text-xs font-bold text-neutral-700">
-                        {c.total}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {on.quality && lint.length > 0 && (
-              <section className="mt-10 break-inside-avoid">
-                <SectionH2>Qualitätscheck (SOP-Regeln)</SectionH2>
-                <ul className="space-y-1.5">
-                  {lint.map((f, i) => (
-                    <li key={i} className="flex gap-2 text-sm leading-relaxed text-neutral-700">
-                      <span
-                        className={`mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ring-1 ${
-                          f.level === "error"
-                            ? "bg-red-50 text-red-800 ring-red-200"
-                            : f.level === "warning"
-                              ? "bg-amber-50 text-amber-800 ring-amber-200"
-                              : "bg-blue-50 text-blue-800 ring-blue-200"
-                        }`}
-                      >
-                        {f.level === "error" ? "Verstoß" : f.level === "warning" ? "Warnung" : "Hinweis"}
-                      </span>
-                      <span>
-                        <span className="font-semibold">{f.rule}:</span> {f.message}{" "}
-                        <span className="text-neutral-400">({f.note.title})</span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
               </section>
             )}
 
@@ -484,6 +437,28 @@ export default function ReportPage() {
                     </li>
                   ))}
                 </ul>
+              </section>
+            )}
+
+            {on.requirements && (project.requirements?.length ?? 0) > 0 && (
+              <section className="mt-10 break-inside-avoid">
+                <SectionH2>Requirements Checklist</SectionH2>
+                {project.requirements!.map((r) => (
+                  <div key={r.id} className="flex items-center gap-2 text-sm text-neutral-700">
+                    <span
+                      className={`flex h-3.5 w-3.5 items-center justify-center rounded border text-[9px] ${
+                        r.done
+                          ? "border-emerald-500 bg-emerald-500 text-white"
+                          : "border-neutral-300"
+                      }`}
+                    >
+                      {r.done ? "✓" : ""}
+                    </span>
+                    <span className={r.done ? "text-neutral-400 line-through" : ""}>
+                      {r.text.replace(/^\[(Rec|Need)\]\s*/, "")}
+                    </span>
+                  </div>
+                ))}
               </section>
             )}
 
