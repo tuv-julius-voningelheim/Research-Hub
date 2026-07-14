@@ -9,7 +9,8 @@ import { quoteKey } from "@/lib/types";
 import InsightsRecsTab from "@/components/project/InsightsRecsTab";
 import NotesTab from "@/components/project/NotesTab";
 import RequirementsTab from "@/components/project/RequirementsTab";
-import { Modal, btnSecondary, inputCls } from "@/components/ui";
+import ShareModal from "@/components/ShareModal";
+import { btnSecondary } from "@/components/ui";
 import { divisionOf, programOf, useHub } from "@/lib/store";
 import type { Note, NoteType, Vault } from "@/lib/types";
 import NoteCard from "@/components/project/NoteCard";
@@ -112,13 +113,10 @@ function ProjectDetail() {
     mode,
     attachVault,
     updateProject,
-    createShare,
-    removeShare,
     toggleQuoteStar,
     toggleQuestionHidden,
   } = useHub();
   const [shareOpen, setShareOpen] = useState(false);
-  const [copied, setCopied] = useState<string | null>(null);
 
   const project = state.projects.find((p) => p.id === params.id);
   const vault = project?.vault;
@@ -386,72 +384,11 @@ function ProjectDetail() {
       )}
 
       {shareOpen && (
-        <Modal title="Read-only-Link teilen" onClose={() => setShareOpen(false)}>
-          <p className="mb-4 text-sm leading-relaxed text-neutral-600">
-            Wer den Link hat, sieht nur die Ergebnisse dieses Projekts —
-            schreibgeschützt, ohne Zugriff auf den Rest des Hubs. Links lassen sich
-            jederzeit widerrufen.
-          </p>
-
-          {(state.shares ?? []).filter((s) => s.projectId === project.id).length === 0 ? (
-            <p className="mb-4 rounded-lg bg-neutral-50 px-3 py-4 text-center text-sm text-neutral-400 ring-1 ring-neutral-200">
-              Noch kein Link erstellt.
-            </p>
-          ) : (
-            <ul className="mb-4 space-y-2">
-              {(state.shares ?? [])
-                .filter((s) => s.projectId === project.id)
-                .map((s) => {
-                  const url = `${window.location.origin}/share/${s.token}`;
-                  return (
-                    <li key={s.token} className="flex items-center gap-2">
-                      <input
-                        readOnly
-                        className={`${inputCls} font-mono text-xs`}
-                        value={url}
-                        onFocus={(e) => e.target.select()}
-                      />
-                      <button
-                        type="button"
-                        className={btnSecondary}
-                        onClick={async () => {
-                          await navigator.clipboard.writeText(url).catch(() => {});
-                          setCopied(s.token);
-                          setTimeout(() => setCopied(null), 1500);
-                        }}
-                      >
-                        {copied === s.token ? "Kopiert ✓" : "Kopieren"}
-                      </button>
-                      <button
-                        type="button"
-                        title="Link widerrufen"
-                        onClick={() => removeShare(s.token)}
-                        className="cursor-pointer rounded-lg p-2 text-neutral-400 transition-colors hover:bg-red-50 hover:text-red-600"
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                        </svg>
-                      </button>
-                    </li>
-                  );
-                })}
-            </ul>
-          )}
-
-          <button
-            type="button"
-            className="w-full cursor-pointer rounded-lg bg-[#0057b8] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#004a99]"
-            onClick={async () => {
-              const share = createShare(project.id);
-              const url = `${window.location.origin}/share/${share.token}`;
-              await navigator.clipboard.writeText(url).catch(() => {});
-              setCopied(share.token);
-              setTimeout(() => setCopied(null), 1500);
-            }}
-          >
-            + Neuen Link erstellen (wird kopiert)
-          </button>
-        </Modal>
+        <ShareModal
+          kind="project"
+          targetId={project.id}
+          onClose={() => setShareOpen(false)}
+        />
       )}
     </div>
   );

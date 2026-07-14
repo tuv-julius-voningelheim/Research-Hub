@@ -1,6 +1,7 @@
-// Public read-only access for share links: validates the token against the
-// stored workspace and returns exactly one project's results (never the
-// whole workspace). Excluded from the password gate in middleware.
+// Public read-only access for share links. A token can scope a single
+// project, a whole program or a whole division — the response contains
+// exactly that scope's projects (with vaults), never the whole workspace.
+// Excluded from the password gate in middleware.
 
 import {
   STATE_DIR,
@@ -11,6 +12,31 @@ import {
 } from "@/lib/blobStore";
 
 export const dynamic = "force-dynamic";
+
+interface StoredProject {
+  id: string;
+  name: string;
+  description?: string;
+  status: string;
+  method?: string;
+  programId: string;
+  createdAt: number;
+  hasVault?: boolean;
+  starredQuotes?: Record<string, string[]>;
+  hiddenQuestions?: string[];
+}
+
+interface StoredState {
+  shares?: {
+    token: string;
+    kind?: "project" | "program" | "division";
+    targetId?: string;
+    projectId?: string;
+  }[];
+  projects?: StoredProject[];
+  programs?: { id: string; name: string; divisionId: string }[];
+  divisions?: { id: string; name: string; description?: string }[];
+}
 
 export async function GET(req: Request) {
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
@@ -24,61 +50,80 @@ export async function GET(req: Request) {
     return new Response(null, { status: 404 });
   }
 
-  const state = (await readLatestJson(STATE_DIR, STATE_LEGACY)) as {
-    shares?: { token: string; projectId: string }[];
-    projects?: Record<string, unknown>[];
-    programs?: { id: string; name: string; divisionId: string }[];
-    divisions?: { id: string; name: string }[];
-  } | null;
+  const state = (await readLatestJson(STATE_DIR, STATE_LEGACY)) as StoredState | null;
   if (!state) return new Response(null, { status: 404 });
 
   const share = (state.shares ?? []).find((s) => s.token === token);
   if (!share) return new Response(null, { status: 404 });
 
-  const project = (state.projects ?? []).find(
-    (p) => (p as { id?: string }).id === share.projectId
-  ) as
-    | {
-        id: string;
-        name: string;
-        description?: string;
-        status: string;
-        method?: string;
-        programId: string;
-        createdAt: number;
-        hasVault?: boolean;
-        nextSteps?: unknown[];
-        notes?: string;
-        starredQuotes?: Record<string, string[]>;
-        hiddenQuestions?: string[];
-      }
-    | undefined;
-  if (!project) return new Response(null, { status: 404 });
+  const kind = share.kind ?? "project";
+  const targetId = share.targetId ?? share.projectId ?? "";
+  const programs = state.programs ?? [];
+  const divisions = state.divisions ?? [];
+  const allProjects = state.projects ?? [];
 
-  const program = (state.programs ?? []).find((p) => p.id === project.programId);
-  const division = program
-    ? (state.divisions ?? []).find((d) => d.id === program.divisionId)
-    : undefined;
+  // resolve scope
+  let title = "";
+  let subtitle = "";
+  let scopedPrograms: { id: string; name: string }[] = [];
+  let scopedProjects: StoredProject[] = [];
 
-  const vault = project.hasVault
-    ? await readLatestJson(vaultDir(project.id), vaultLegacy(project.id))
-    : null;
+  if (kind === "project") {
+    const project = allProjects.find((p) => p.id === targetId);
+    if (!project) return new Response(null, { status: 404 });
+    const program = programs.find((p) => p.id === project.programId);
+    const division = program
+      ? divisions.find((d) => d.id === program.divisionId)
+      : undefined;
+    title = project.name;
+    subtitle = [division?.name, program?.name, project.method]
+      .filter(Boolean)
+      .join(" · ");
+    scopedProjects = [project];
+    if (program) scopedPrograms = [{ id: program.id, name: program.name }];
+  } else if (kind === "program") {
+    const program = programs.find((p) => p.id === targetId);
+    if (!program) return new Response(null, { status: 404 });
+    const division = divisions.find((d) => d.id === program.divisionId);
+    title = program.name;
+    subtitle = [division?.name, "Program"].filter(Boolean).join(" · ");
+    scopedPrograms = [{ id: program.id, name: program.name }];
+    scopedProjects = allProjects.filter((p) => p.programId === program.id);
+  } else {
+    const division = divisions.find((d) => d.id === targetId);
+    if (!division) return new Response(null, { status: 404 });
+    title = division.name;
+    subtitle = "Division";
+    scopedPrograms = programs
+      .filter((p) => p.divisionId === division.id)
+      .map((p) => ({ id: p.id, name: p.name }));
+    const programIds = new Set(scopedPrograms.map((p) => p.id));
+    scopedProjects = allProjects.filter((p) => programIds.has(p.programId));
+  }
+
+  const projects = await Promise.all(
+    scopedProjects.map(async (p) => {
+      const vault = p.hasVault
+        ? await readLatestJson(vaultDir(p.id), vaultLegacy(p.id))
+        : null;
+      return {
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        status: p.status,
+        method: p.method,
+        programId: p.programId,
+        programName: programs.find((x) => x.id === p.programId)?.name,
+        createdAt: p.createdAt,
+        starredQuotes: p.starredQuotes ?? {},
+        hiddenQuestions: p.hiddenQuestions ?? [],
+        vault,
+      };
+    })
+  );
 
   return Response.json(
-    {
-      project: {
-        name: project.name,
-        description: project.description,
-        status: project.status,
-        method: project.method,
-        createdAt: project.createdAt,
-        starredQuotes: project.starredQuotes ?? {},
-        hiddenQuestions: project.hiddenQuestions ?? [],
-      },
-      program: program?.name,
-      division: division?.name,
-      vault,
-    },
+    { kind, title, subtitle, programs: scopedPrograms, projects },
     { headers: { "cache-control": "no-store" } }
   );
 }

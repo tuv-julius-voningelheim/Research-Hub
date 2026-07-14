@@ -77,7 +77,7 @@ interface HubContextValue {
   seedRequirements: (projectId: string, texts: string[]) => void;
   toggleQuoteStar: (projectId: string, noteSlug: string, key: string) => void;
   toggleQuestionHidden: (projectId: string, question: string) => void;
-  createShare: (projectId: string) => ShareLink;
+  createShare: (kind: "project" | "program" | "division", targetId: string) => ShareLink;
   removeShare: (token: string) => void;
 }
 
@@ -557,10 +557,11 @@ export function HubProvider({ children }: { children: ReactNode }) {
   );
 
   const createShare = useCallback(
-    (projectId: string) => {
+    (kind: "project" | "program" | "division", targetId: string) => {
       const share: ShareLink = {
         token: uid() + uid(),
-        projectId,
+        kind,
+        targetId,
         createdAt: Date.now(),
       };
       const s = stateRef.current;

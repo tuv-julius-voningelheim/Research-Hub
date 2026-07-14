@@ -517,3 +517,13 @@ export function aggregateThemes(
       (CONFIDENCE_ORDER[b.maxConfidence] ?? 0) - (CONFIDENCE_ORDER[a.maxConfidence] ?? 0)
   );
 }
+
+// ---- merge helper: treat several project vaults as one for distributions ----
+
+export function mergeVaults(
+  projects: { vault?: Vault }[]
+): Vault | undefined {
+  const notes = projects.flatMap((p) => p.vault?.notes ?? []);
+  if (notes.length === 0) return undefined;
+  return { name: "merged", uploadedAt: 0, zipFileName: "", notes };
+}

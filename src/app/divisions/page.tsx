@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useMemo, useState } from "react";
 import { useHub } from "@/lib/store";
 import type { Division } from "@/lib/types";
@@ -111,13 +113,23 @@ export default function DivisionsPage() {
                   {d.description && (
                     <p className="mt-2 text-sm text-neutral-500">{d.description}</p>
                   )}
-                  <div className="mt-3 flex gap-2">
+                  <div className="mt-3 flex items-center gap-2">
                     <Chip tone="blue">
                       {programs.length} {programs.length === 1 ? "program" : "programs"}
                     </Chip>
                     <Chip>
                       {projectCount} {projectCount === 1 ? "project" : "projects"}
                     </Chip>
+                    <span className="flex-1" />
+                    <Link
+                      href={`/divisions/${d.id}`}
+                      className="flex items-center gap-1 rounded-lg bg-[#0057b8] px-3.5 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-[#004a99]"
+                    >
+                      Open
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="m9 18 6-6-6-6" />
+                      </svg>
+                    </Link>
                   </div>
                 </div>
               </Card>

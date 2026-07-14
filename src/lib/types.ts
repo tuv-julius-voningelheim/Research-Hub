@@ -51,11 +51,24 @@ export function quoteKey(text: string): string {
   return text.slice(0, 80);
 }
 
-/** read-only share link for one project's results */
+export type ShareKind = "project" | "program" | "division";
+
+/** read-only share link: one project, a whole program or a whole division */
 export interface ShareLink {
   token: string;
-  projectId: string;
+  kind?: ShareKind;
+  targetId?: string;
+  /** legacy field (early links were project-only) */
+  projectId?: string;
   createdAt: number;
+}
+
+export function shareKindOf(s: ShareLink): ShareKind {
+  return s.kind ?? "project";
+}
+
+export function shareTargetOf(s: ShareLink): string {
+  return s.targetId ?? s.projectId ?? "";
 }
 
 // ---- Parsed vault ----

@@ -5,13 +5,19 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   aggregateThemes,
+  mergeVaults,
+  needCategoryDistribution,
   notesOf,
+  openQuestions,
   rankPainPoints,
+  severityDistribution,
   totalQuotes,
 } from "@/lib/analytics";
+import { BarRow, SEVERITY_COLOR } from "@/components/Bars";
+import ShareModal from "@/components/ShareModal";
 import { useHub } from "@/lib/store";
 import {
   Card,
@@ -32,7 +38,8 @@ const CONF_DOT: Record<string, string> = {
 
 export default function ProgramDetailPage() {
   const params = useParams<{ id: string }>();
-  const { state, ready } = useHub();
+  const { state, ready, mode } = useHub();
+  const [shareOpen, setShareOpen] = useState(false);
 
   const program = state.programs.find((p) => p.id === params.id);
   const division = program
@@ -69,6 +76,14 @@ export default function ProgramDetailPage() {
     [projects]
   );
 
+  // aggregated distributions across every project of the program
+  const merged = useMemo(() => mergeVaults(projects), [projects]);
+  const sevDist = useMemo(() => severityDistribution(merged), [merged]);
+  const needDist = useMemo(() => needCategoryDistribution(merged), [merged]);
+  const questionCount = useMemo(() => openQuestions(merged).length, [merged]);
+  const maxSev = Math.max(1, ...sevDist.map((d) => d.count));
+  const maxNeed = Math.max(1, ...needDist.map((d) => d.count));
+
   if (!ready) return null;
   if (!program) {
     return (
@@ -98,12 +113,12 @@ export default function ProgramDetailPage() {
       </Link>
 
       <Card className="p-5">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-[#004a99]">
             {ProgramIcon}
           </div>
-          <div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-neutral-900">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-2xl font-bold tracking-tight text-neutral-900">
               {program.name}
             </h1>
             <div className="text-sm text-neutral-500">
@@ -111,6 +126,21 @@ export default function ProgramDetailPage() {
               {projects.length === 1 ? "Projekt" : "Projekte"}
             </div>
           </div>
+          {mode === "shared" && (
+            <button
+              type="button"
+              onClick={() => setShareOpen(true)}
+              className="cursor-pointer rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50"
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+                  <path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4" />
+                </svg>
+                Teilen
+              </span>
+            </button>
+          )}
         </div>
         <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
           <StatTile value={projects.length} label="Projects" icon={FolderIcon} />
@@ -141,6 +171,48 @@ export default function ProgramDetailPage() {
           ))}
         </div>
       </section>
+
+      {/* aggregated distributions */}
+      {merged && (sevDist.length > 0 || needDist.length > 0) && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          {sevDist.length > 0 && (
+            <Card className="p-5">
+              <h3 className="mb-4 text-sm font-bold text-neutral-900">
+                Pain Points nach Severity (alle Projekte)
+              </h3>
+              <div className="space-y-2.5">
+                {sevDist.map((d) => (
+                  <BarRow
+                    key={d.label}
+                    label={d.label}
+                    count={d.count}
+                    max={maxSev}
+                    color={SEVERITY_COLOR[d.label] ?? "#8a8a85"}
+                  />
+                ))}
+              </div>
+            </Card>
+          )}
+          {needDist.length > 0 && (
+            <Card className="p-5">
+              <h3 className="mb-4 text-sm font-bold text-neutral-900">
+                Needs nach Kategorie (alle Projekte)
+              </h3>
+              <div className="space-y-2.5">
+                {needDist.map((d) => (
+                  <BarRow key={d.label} label={d.label} count={d.count} max={maxNeed} />
+                ))}
+              </div>
+            </Card>
+          )}
+          <Card className="flex flex-col justify-center gap-1 p-5">
+            <div className="text-3xl font-bold text-neutral-900">{questionCount}</div>
+            <div className="text-sm text-neutral-500">
+              Offene Fragen &amp; Research Gaps im Programm
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* recurring themes across projects */}
       {themes.length > 0 && (
@@ -218,6 +290,10 @@ export default function ProgramDetailPage() {
           title="Noch keine Projekte in diesem Programm"
           hint="Lege unter Projects ein Projekt an und wähle dieses Programm."
         />
+      )}
+
+      {shareOpen && (
+        <ShareModal kind="program" targetId={program.id} onClose={() => setShareOpen(false)} />
       )}
     </div>
   );
