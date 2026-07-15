@@ -22,7 +22,7 @@ import {
 import type { Note, ProjectLink, ReportBlock, Vault } from "@/lib/types";
 import { Card, ConfidenceBadge, LevelBadge, Modal, StatTile } from "@/components/ui";
 import { FlagIcon, QuoteIcon, UsersIcon } from "@/components/icons";
-import Markdown from "@/components/Markdown";
+import RichContent from "@/components/RichContent";
 import { TYPE_LABEL, TypePill } from "./NoteDrawer";
 
 export interface OverviewContext {
@@ -41,7 +41,7 @@ function ReportBlockView({ block }: { block: ReportBlock }) {
         </h3>
       )}
       <div className="text-sm text-neutral-700">
-        <Markdown text={block.body} />
+        <RichContent html={block.body} />
       </div>
     </Card>
   );

@@ -13,6 +13,7 @@ import {
   totalQuotes,
 } from "./analytics";
 import { quoteKey, type Note, type Project } from "./types";
+import { htmlToMarkdown } from "./richtext";
 
 function cap(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -65,7 +66,8 @@ export function buildMarkdownReport(
       if (!b.title.trim() && !b.body.trim()) continue;
       if (b.title.trim()) push(`## ${b.title.trim()}`);
       push();
-      if (b.body.trim()) push(b.body.trim());
+      const md = htmlToMarkdown(b.body).trim();
+      if (md) push(md);
       push();
     }
   };

@@ -21,7 +21,7 @@ import { quoteKey } from "@/lib/types";
 import { effectiveVault } from "@/lib/editable";
 import { divisionOf, programOf, useHub } from "@/lib/store";
 import type { Note, ReportBlock, ReportPlacement } from "@/lib/types";
-import Markdown from "@/components/Markdown";
+import RichContent from "@/components/RichContent";
 
 function cap(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -68,7 +68,7 @@ function ReportBlocks({ blocks, placement }: { blocks: ReportBlock[]; placement:
         <section key={b.id} className="mt-10 break-inside-avoid">
           {b.title.trim() && <SectionH2>{b.title}</SectionH2>}
           <div className="text-sm leading-relaxed text-neutral-700">
-            <Markdown text={b.body} />
+            <RichContent html={b.body} />
           </div>
         </section>
       ))}

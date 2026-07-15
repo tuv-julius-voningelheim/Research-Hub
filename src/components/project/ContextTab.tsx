@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useHub } from "@/lib/store";
 import type { Project, ReportPlacement } from "@/lib/types";
 import { Card, SectionTitle, btnPrimary, btnSecondary, inputCls } from "@/components/ui";
+import RichEditor from "@/components/RichEditor";
 
 const PLACEMENTS: { value: ReportPlacement; label: string }[] = [
   { value: "top", label: "Ganz oben" },
@@ -196,7 +197,7 @@ export default function ContextTab({ project }: { project: Project }) {
       {/* report blocks */}
       <div>
         <div className="mb-3 flex items-end justify-between gap-3">
-          <SectionTitle sub="Freie Textblöcke für Report & Share — mit Position. Markdown wird unterstützt.">
+          <SectionTitle sub="Freie Inhalte für Report & Share — mit Position und Rich-Text (Überschriften, Fett, Kursiv, Listen …).">
             Zusätzliche Report-Inhalte
           </SectionTitle>
           <button
@@ -217,7 +218,7 @@ export default function ContextTab({ project }: { project: Project }) {
             <Card key={b.id} className="p-4">
               <div className="mb-2 flex items-center gap-2">
                 <input
-                  className={`${inputCls} font-semibold`}
+                  className="min-w-0 flex-1 rounded-lg border border-neutral-200 bg-white px-3.5 py-2 text-sm font-semibold text-neutral-900 outline-none focus:border-[#0057b8] focus:ring-4 focus:ring-blue-600/10"
                   placeholder="Überschrift"
                   value={b.title}
                   onChange={(e) =>
@@ -225,7 +226,7 @@ export default function ContextTab({ project }: { project: Project }) {
                   }
                 />
                 <select
-                  className={`${inputCls} w-44 shrink-0`}
+                  className="w-40 shrink-0 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 outline-none focus:border-[#0057b8]"
                   value={b.placement}
                   onChange={(e) =>
                     updateReportBlock(project.id, b.id, {
@@ -250,13 +251,10 @@ export default function ContextTab({ project }: { project: Project }) {
                   </svg>
                 </button>
               </div>
-              <textarea
-                className={`${inputCls} min-h-[120px] resize-y leading-relaxed`}
-                placeholder="Inhalt… (Markdown: **fett**, Listen mit -, Überschriften mit ##)"
-                value={b.body}
-                onChange={(e) =>
-                  updateReportBlock(project.id, b.id, { body: e.target.value })
-                }
+              <RichEditor
+                html={b.body}
+                onChange={(v) => updateReportBlock(project.id, b.id, { body: v })}
+                placeholder="Inhalt… (Überschriften, Fett, Kursiv, Listen über die Leiste oben)"
               />
             </Card>
           ))}
