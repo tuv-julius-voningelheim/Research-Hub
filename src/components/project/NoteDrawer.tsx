@@ -60,6 +60,8 @@ export default function NoteDrawer({
   onNavigate,
   onClose,
   quoteCuration,
+  onEdit,
+  onDelete,
 }: {
   vault: Vault;
   note: Note;
@@ -69,6 +71,8 @@ export default function NoteDrawer({
     isStarred: (text: string) => boolean;
     onToggle: (text: string) => void;
   };
+  onEdit?: (n: Note) => void;
+  onDelete?: (n: Note) => void;
 }) {
   const idx = useMemo(() => slugIndex(vault), [vault]);
   const incoming = useMemo(() => backlinks(vault, note.slug), [vault, note.slug]);
@@ -92,20 +96,52 @@ export default function NoteDrawer({
           <div className="flex items-start justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
               <TypePill type={note.type} />
+              {note.manual && (
+                <span className="rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-bold text-violet-700">
+                  Manuell
+                </span>
+              )}
+              {note.edited && (
+                <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-bold text-[#0057b8]">
+                  Bearbeitet
+                </span>
+              )}
               <LevelBadge level={fm["severity"]} prefix="Severity" />
               <LevelBadge level={fm["priority"]} prefix="Priority" />
               <ConfidenceBadge level={fm["confidence"]} />
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close"
-              className="cursor-pointer rounded-full p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 6 6 18M6 6l12 12" />
-              </svg>
-            </button>
+            <div className="flex shrink-0 items-center gap-1">
+              {onEdit && (
+                <button
+                  type="button"
+                  onClick={() => onEdit(note)}
+                  title="Bearbeiten"
+                  className="cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-semibold text-neutral-600 hover:bg-neutral-100 hover:text-[#0057b8]"
+                >
+                  Bearbeiten
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  type="button"
+                  onClick={() => onDelete(note)}
+                  title={note.manual ? "Löschen" : "Ausblenden"}
+                  className="cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-semibold text-neutral-500 hover:bg-red-50 hover:text-red-600"
+                >
+                  {note.manual ? "Löschen" : "Ausblenden"}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Close"
+                className="cursor-pointer rounded-full p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
           <h2 className="mt-2 text-lg font-extrabold leading-snug text-neutral-900">
             {note.title}

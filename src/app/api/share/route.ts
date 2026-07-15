@@ -10,6 +10,8 @@ import {
   vaultDir,
   vaultLegacy,
 } from "@/lib/blobStore";
+import { effectiveVault } from "@/lib/editable";
+import type { Project, Vault } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +26,10 @@ interface StoredProject {
   hasVault?: boolean;
   starredQuotes?: Record<string, string[]>;
   hiddenQuestions?: string[];
+  goals?: string[];
+  hypotheses?: string[];
+  links?: { id: string; label: string; url: string }[];
+  reportBlocks?: { id: string; title: string; body: string; placement: string }[];
 }
 
 interface StoredState {
@@ -103,9 +109,12 @@ export async function GET(req: Request) {
 
   const projects = await Promise.all(
     scopedProjects.map(async (p) => {
-      const vault = p.hasVault
-        ? await readLatestJson(vaultDir(p.id), vaultLegacy(p.id))
+      const rawVault = p.hasVault
+        ? ((await readLatestJson(vaultDir(p.id), vaultLegacy(p.id))) as Vault | null)
         : null;
+      // apply manual edits / manual notes / soft-hides server-side
+      const vault =
+        effectiveVault({ ...(p as unknown as Project), vault: rawVault ?? undefined }) ?? null;
       return {
         id: p.id,
         name: p.name,
@@ -117,6 +126,10 @@ export async function GET(req: Request) {
         createdAt: p.createdAt,
         starredQuotes: p.starredQuotes ?? {},
         hiddenQuestions: p.hiddenQuestions ?? [],
+        goals: p.goals ?? [],
+        hypotheses: p.hypotheses ?? [],
+        links: p.links ?? [],
+        reportBlocks: p.reportBlocks ?? [],
         vault,
       };
     })

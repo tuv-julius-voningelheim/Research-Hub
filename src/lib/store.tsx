@@ -21,13 +21,19 @@ import {
 } from "react";
 import type {
   Division,
+  EditableContent,
+  ManualNote,
   NextStep,
   Program,
   Project,
+  ProjectLink,
   ProjectStatus,
+  ReportBlock,
+  ReportPlacement,
   ShareLink,
   Vault,
 } from "./types";
+import { extractEditable } from "./editable";
 
 const DB_KEY = "tuv-research-hub-v1";
 const REFRESH_INTERVAL_MS = 60_000;
@@ -77,6 +83,27 @@ interface HubContextValue {
   seedRequirements: (projectId: string, texts: string[]) => void;
   toggleQuoteStar: (projectId: string, noteSlug: string, key: string) => void;
   toggleQuestionHidden: (projectId: string, question: string) => void;
+  // manual create / edit / delete
+  upsertOverride: (projectId: string, slug: string, content: EditableContent) => void;
+  resetOverride: (projectId: string, slug: string) => void;
+  addManualNote: (projectId: string, content: EditableContent) => ManualNote;
+  updateManualNote: (projectId: string, id: string, content: EditableContent) => void;
+  removeManualNote: (projectId: string, id: string) => void;
+  hideNote: (projectId: string, slug: string) => void;
+  restoreNote: (projectId: string, slug: string) => void;
+  applyUpload: (
+    projectId: string,
+    vault: Vault,
+    resolutions: Record<string, "mine" | "theirs">
+  ) => void;
+  // research framing
+  setGoals: (projectId: string, goals: string[]) => void;
+  setHypotheses: (projectId: string, hypotheses: string[]) => void;
+  setLinks: (projectId: string, links: ProjectLink[]) => void;
+  // report blocks
+  addReportBlock: (projectId: string, placement: ReportPlacement) => void;
+  updateReportBlock: (projectId: string, id: string, patch: Partial<ReportBlock>) => void;
+  removeReportBlock: (projectId: string, id: string) => void;
   createShare: (kind: "project" | "program" | "division", targetId: string) => ShareLink;
   removeShare: (token: string) => void;
 }
@@ -229,47 +256,66 @@ export function HubProvider({ children }: { children: ReactNode }) {
   // rapid edits can't race each other into a spurious 409
   const inFlightRef = useRef<Promise<void> | null>(null);
 
+  const doPush = useCallback(() => {
+    const run = async () => {
+      if (inFlightRef.current) await inFlightRef.current.catch(() => {});
+      try {
+        const res = await fetch("/api/state", {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            baseRev: revRef.current,
+            ...stripVaults(stateRef.current),
+          }),
+          // survive page navigations / tab close right after an edit
+          keepalive: true,
+        });
+        if (res.status === 409) {
+          setConflict(true);
+          setSyncError(false);
+        } else if (res.ok) {
+          const data = await res.json();
+          if (typeof data.rev === "number") revRef.current = data.rev;
+          setSyncError(false);
+        } else {
+          setSyncError(true);
+        }
+      } catch {
+        setSyncError(true);
+      } finally {
+        pendingRef.current = false;
+      }
+    };
+    const p = run();
+    inFlightRef.current = p;
+    void p.finally(() => {
+      if (inFlightRef.current === p) inFlightRef.current = null;
+    });
+  }, []);
+
   const pushStructure = useCallback(() => {
     if (modeRef.current !== "shared") return;
     pendingRef.current = true;
     if (pushTimer.current) clearTimeout(pushTimer.current);
-    pushTimer.current = setTimeout(() => {
-      const run = async () => {
-        if (inFlightRef.current) await inFlightRef.current.catch(() => {});
-        try {
-          const res = await fetch("/api/state", {
-            method: "PUT",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({
-              baseRev: revRef.current,
-              ...stripVaults(stateRef.current),
-            }),
-            // survive page navigations that happen right after an edit
-            keepalive: true,
-          });
-          if (res.status === 409) {
-            setConflict(true);
-            setSyncError(false);
-          } else if (res.ok) {
-            const data = await res.json();
-            if (typeof data.rev === "number") revRef.current = data.rev;
-            setSyncError(false);
-          } else {
-            setSyncError(true);
-          }
-        } catch {
-          setSyncError(true);
-        } finally {
-          pendingRef.current = false;
-        }
-      };
-      const p = run();
-      inFlightRef.current = p;
-      void p.finally(() => {
-        if (inFlightRef.current === p) inFlightRef.current = null;
-      });
-    }, 600);
-  }, []);
+    pushTimer.current = setTimeout(doPush, 600);
+  }, [doPush]);
+
+  // flush a pending write immediately when the tab is hidden / navigated away,
+  // so edits made moments before leaving aren't lost with the debounce timer
+  useEffect(() => {
+    const flush = () => {
+      if (!pendingRef.current) return;
+      if (pushTimer.current) clearTimeout(pushTimer.current);
+      doPush();
+    };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") flush();
+    });
+    return () => {
+      window.removeEventListener("pagehide", flush);
+    };
+  }, [doPush]);
 
   const persist = useCallback(
     (next: HubState) => {
@@ -433,6 +479,195 @@ export function HubProvider({ children }: { children: ReactNode }) {
       });
     },
     [persist]
+  );
+
+  // ---- manual create / edit / delete ----
+
+  const upsertOverride = useCallback(
+    (projectId: string, slug: string, content: EditableContent) => {
+      patchProject(projectId, (p) => {
+        const baseNote = p.vault?.notes.find((n) => n.slug === slug);
+        const prev = p.overrides?.[slug];
+        return {
+          ...p,
+          overrides: {
+            ...(p.overrides ?? {}),
+            [slug]: {
+              content,
+              base: prev?.base ?? (baseNote ? extractEditable(baseNote) : content),
+              editedAt: Date.now(),
+            },
+          },
+        };
+      });
+    },
+    [patchProject]
+  );
+
+  const resetOverride = useCallback(
+    (projectId: string, slug: string) => {
+      patchProject(projectId, (p) => {
+        const next = { ...(p.overrides ?? {}) };
+        delete next[slug];
+        return { ...p, overrides: next };
+      });
+    },
+    [patchProject]
+  );
+
+  const addManualNote = useCallback(
+    (projectId: string, content: EditableContent) => {
+      const note: ManualNote = {
+        id: uid(),
+        content,
+        createdAt: Date.now(),
+        editedAt: Date.now(),
+      };
+      patchProject(projectId, (p) => ({
+        ...p,
+        manualNotes: [...(p.manualNotes ?? []), note],
+      }));
+      return note;
+    },
+    [patchProject]
+  );
+
+  const updateManualNote = useCallback(
+    (projectId: string, id: string, content: EditableContent) => {
+      patchProject(projectId, (p) => ({
+        ...p,
+        manualNotes: (p.manualNotes ?? []).map((m) =>
+          m.id === id ? { ...m, content, editedAt: Date.now() } : m
+        ),
+      }));
+    },
+    [patchProject]
+  );
+
+  const removeManualNote = useCallback(
+    (projectId: string, id: string) => {
+      patchProject(projectId, (p) => ({
+        ...p,
+        manualNotes: (p.manualNotes ?? []).filter((m) => m.id !== id),
+      }));
+    },
+    [patchProject]
+  );
+
+  const hideNote = useCallback(
+    (projectId: string, slug: string) => {
+      patchProject(projectId, (p) => ({
+        ...p,
+        hiddenNotes: [...new Set([...(p.hiddenNotes ?? []), slug])],
+      }));
+    },
+    [patchProject]
+  );
+
+  const restoreNote = useCallback(
+    (projectId: string, slug: string) => {
+      patchProject(projectId, (p) => ({
+        ...p,
+        hiddenNotes: (p.hiddenNotes ?? []).filter((s) => s !== slug),
+      }));
+    },
+    [patchProject]
+  );
+
+  const applyUpload = useCallback(
+    (
+      projectId: string,
+      nextVault: Vault,
+      resolutions: Record<string, "mine" | "theirs">
+    ) => {
+      void pushVault(projectId, nextVault);
+      patchProject(projectId, (p) => {
+        const newSlugs = new Set(nextVault.notes.map((n) => n.slug));
+        const overrides = { ...(p.overrides ?? {}) };
+        const manualNotes = [...(p.manualNotes ?? [])];
+
+        for (const slug of Object.keys(overrides)) {
+          const ov = overrides[slug];
+          const newNote = nextVault.notes.find((n) => n.slug === slug);
+          if (!newNote) {
+            // upstream removed a note the user edited → preserve as manual
+            manualNotes.push({
+              id: uid(),
+              content: ov.content,
+              createdAt: ov.editedAt,
+              editedAt: ov.editedAt,
+            });
+            delete overrides[slug];
+            continue;
+          }
+          if (resolutions[slug] === "theirs") {
+            delete overrides[slug];
+          } else {
+            // keep the edit, re-anchor its base to the new upstream content
+            overrides[slug] = { ...ov, base: extractEditable(newNote) };
+          }
+        }
+
+        return {
+          ...p,
+          vault: nextVault,
+          overrides,
+          manualNotes,
+          // keep only hides that still exist upstream
+          hiddenNotes: (p.hiddenNotes ?? []).filter((s) => newSlugs.has(s)),
+        };
+      });
+    },
+    [patchProject, pushVault]
+  );
+
+  const setGoals = useCallback(
+    (projectId: string, goals: string[]) =>
+      patchProject(projectId, (p) => ({ ...p, goals })),
+    [patchProject]
+  );
+  const setHypotheses = useCallback(
+    (projectId: string, hypotheses: string[]) =>
+      patchProject(projectId, (p) => ({ ...p, hypotheses })),
+    [patchProject]
+  );
+  const setLinks = useCallback(
+    (projectId: string, links: ProjectLink[]) =>
+      patchProject(projectId, (p) => ({ ...p, links })),
+    [patchProject]
+  );
+
+  const addReportBlock = useCallback(
+    (projectId: string, placement: ReportPlacement) => {
+      patchProject(projectId, (p) => ({
+        ...p,
+        reportBlocks: [
+          ...(p.reportBlocks ?? []),
+          { id: uid(), title: "", body: "", placement },
+        ],
+      }));
+    },
+    [patchProject]
+  );
+  const updateReportBlock = useCallback(
+    (projectId: string, id: string, patch: Partial<ReportBlock>) => {
+      patchProject(projectId, (p) => ({
+        ...p,
+        reportBlocks: (p.reportBlocks ?? []).map((b) =>
+          b.id === id ? { ...b, ...patch } : b
+        ),
+      }));
+    },
+    [patchProject]
+  );
+  const removeReportBlock = useCallback(
+    (projectId: string, id: string) => {
+      patchProject(projectId, (p) => ({
+        ...p,
+        reportBlocks: (p.reportBlocks ?? []).filter((b) => b.id !== id),
+      }));
+    },
+    [patchProject]
   );
 
   const addNextStep = useCallback(
@@ -608,6 +843,20 @@ export function HubProvider({ children }: { children: ReactNode }) {
         seedRequirements,
         toggleQuoteStar,
         toggleQuestionHidden,
+        upsertOverride,
+        resetOverride,
+        addManualNote,
+        updateManualNote,
+        removeManualNote,
+        hideNote,
+        restoreNote,
+        applyUpload,
+        setGoals,
+        setHypotheses,
+        setLinks,
+        addReportBlock,
+        updateReportBlock,
+        removeReportBlock,
         createShare,
         removeShare,
       }}

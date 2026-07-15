@@ -19,10 +19,98 @@ import {
   themeSummaries,
   totalQuotes,
 } from "@/lib/analytics";
-import type { Note, Vault } from "@/lib/types";
+import type { Note, ProjectLink, ReportBlock, Vault } from "@/lib/types";
 import { Card, ConfidenceBadge, LevelBadge, Modal, StatTile } from "@/components/ui";
 import { FlagIcon, QuoteIcon, UsersIcon } from "@/components/icons";
+import Markdown from "@/components/Markdown";
 import { TYPE_LABEL, TypePill } from "./NoteDrawer";
+
+export interface OverviewContext {
+  goals?: string[];
+  hypotheses?: string[];
+  links?: ProjectLink[];
+}
+
+function ReportBlockView({ block }: { block: ReportBlock }) {
+  if (!block.title.trim() && !block.body.trim()) return null;
+  return (
+    <Card className="p-5">
+      {block.title.trim() && (
+        <h3 className="mb-2 text-base font-bold tracking-tight text-neutral-900">
+          {block.title}
+        </h3>
+      )}
+      <div className="text-sm text-neutral-700">
+        <Markdown text={block.body} />
+      </div>
+    </Card>
+  );
+}
+
+function ContextCard({ context }: { context: OverviewContext }) {
+  const { goals = [], hypotheses = [], links = [] } = context;
+  if (goals.length === 0 && hypotheses.length === 0 && links.length === 0) return null;
+  return (
+    <Card className="p-5">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+        {goals.length > 0 && (
+          <div>
+            <h3 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-neutral-900">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0057b8" strokeWidth="2">
+                <circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" />
+              </svg>
+              Research Goals
+            </h3>
+            <ul className="space-y-1.5">
+              {goals.map((g, i) => (
+                <li key={i} className="flex gap-2 text-sm leading-relaxed text-neutral-700">
+                  <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#0057b8]" />
+                  {g}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {hypotheses.length > 0 && (
+          <div>
+            <h3 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-neutral-900">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0057b8" strokeWidth="2">
+                <path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z" />
+              </svg>
+              Hypothesen
+            </h3>
+            <ul className="space-y-1.5">
+              {hypotheses.map((h, i) => (
+                <li key={i} className="flex gap-2 text-sm leading-relaxed text-neutral-700">
+                  <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+                  {h}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+      {links.length > 0 && (
+        <div className="mt-4 flex flex-wrap gap-2 border-t border-neutral-100 pt-4">
+          {links.map((l) => (
+            <a
+              key={l.id}
+              href={l.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-neutral-100 px-3 py-1.5 text-xs font-semibold text-neutral-700 transition-colors hover:bg-neutral-200"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1" />
+              </svg>
+              {l.label || l.url}
+            </a>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
 
 // status ramp for severity (state, not identity — always labeled)
 const SEVERITY_COLOR: Record<string, string> = {
@@ -83,6 +171,8 @@ export default function Overview({
   vault,
   onOpen,
   curation,
+  context,
+  reportBlocks,
 }: {
   vault: Vault;
   onOpen: (n: Note) => void;
@@ -91,7 +181,11 @@ export default function Overview({
     hiddenQuestions?: string[];
     onToggleQuestion?: (question: string) => void;
   };
+  context?: OverviewContext;
+  reportBlocks?: ReportBlock[];
 }) {
+  const topBlocks = (reportBlocks ?? []).filter((b) => b.placement === "top");
+  const laterBlocks = (reportBlocks ?? []).filter((b) => b.placement !== "top");
   const types = useMemo(() => byType(vault), [vault]);
   const ranked = useMemo(() => rankPainPoints(vault), [vault]);
   const themes = useMemo(() => themeSummaries(vault), [vault]);
@@ -120,6 +214,11 @@ export default function Overview({
 
   return (
     <div className="space-y-6">
+      {context && <ContextCard context={context} />}
+      {topBlocks.map((b) => (
+        <ReportBlockView key={b.id} block={b} />
+      ))}
+
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         <StatTile value={types.theme.length} label="Themes" />
@@ -445,6 +544,10 @@ export default function Overview({
           </Card>
         </section>
       )}
+
+      {laterBlocks.map((b) => (
+        <ReportBlockView key={b.id} block={b} />
+      ))}
 
       {/* matrix cell picker */}
       {matrixCell && (

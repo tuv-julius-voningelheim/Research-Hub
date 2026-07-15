@@ -18,8 +18,10 @@ import {
   totalQuotes,
 } from "@/lib/analytics";
 import { quoteKey } from "@/lib/types";
+import { effectiveVault } from "@/lib/editable";
 import { divisionOf, programOf, useHub } from "@/lib/store";
-import type { Note } from "@/lib/types";
+import type { Note, ReportBlock, ReportPlacement } from "@/lib/types";
+import Markdown from "@/components/Markdown";
 
 function cap(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -37,6 +39,7 @@ const SEV_CLS: Record<string, string> = {
 };
 
 const SECTIONS: { key: string; label: string; default: boolean }[] = [
+  { key: "context", label: "Goals & Hypothesen", default: true },
   { key: "shortlist", label: "Priority Shortlist", default: true },
   { key: "themes", label: "Themes", default: true },
   { key: "painpoints", label: "Pain Points (alle)", default: false },
@@ -52,6 +55,25 @@ const SECTIONS: { key: string; label: string; default: boolean }[] = [
 
 function SectionH2({ children }: { children: React.ReactNode }) {
   return <h2 className="mb-4 text-lg font-bold text-neutral-900">{children}</h2>;
+}
+
+function ReportBlocks({ blocks, placement }: { blocks: ReportBlock[]; placement: ReportPlacement }) {
+  const list = blocks.filter(
+    (b) => b.placement === placement && (b.title.trim() || b.body.trim())
+  );
+  if (list.length === 0) return null;
+  return (
+    <>
+      {list.map((b) => (
+        <section key={b.id} className="mt-10 break-inside-avoid">
+          {b.title.trim() && <SectionH2>{b.title}</SectionH2>}
+          <div className="text-sm leading-relaxed text-neutral-700">
+            <Markdown text={b.body} />
+          </div>
+        </section>
+      ))}
+    </>
+  );
 }
 
 function QuoteBlock({ note, starred }: { note: Note; starred?: string[] }) {
@@ -72,7 +94,8 @@ export default function ReportPage() {
   const params = useParams<{ id: string }>();
   const { state, ready } = useHub();
   const project = state.projects.find((p) => p.id === params.id);
-  const vault = project?.vault;
+  const vault = useMemo(() => (project ? effectiveVault(project) : undefined), [project]);
+  const blocks = project?.reportBlocks ?? [];
 
   const [on, setOn] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(SECTIONS.map((s) => [s.key, s.default]))
@@ -175,6 +198,8 @@ export default function ReportPage() {
           </p>
         ) : (
           <>
+            <ReportBlocks blocks={blocks} placement="top" />
+
             {/* key figures — always on */}
             <section className="mt-8">
               <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-neutral-200 ring-1 ring-neutral-200 sm:grid-cols-4">
@@ -191,6 +216,48 @@ export default function ReportPage() {
                 ))}
               </div>
             </section>
+
+            {on.context && ((project.goals?.length ?? 0) > 0 || (project.hypotheses?.length ?? 0) > 0 || (project.links?.length ?? 0) > 0) && (
+              <section className="mt-10 break-inside-avoid">
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                  {(project.goals?.length ?? 0) > 0 && (
+                    <div>
+                      <h3 className="mb-2 text-sm font-bold text-neutral-900">Research Goals</h3>
+                      <ul className="space-y-1.5">
+                        {project.goals!.map((g, i) => (
+                          <li key={i} className="flex gap-2 text-sm leading-relaxed text-neutral-700">
+                            <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#0057b8]" />
+                            {g}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {(project.hypotheses?.length ?? 0) > 0 && (
+                    <div>
+                      <h3 className="mb-2 text-sm font-bold text-neutral-900">Hypothesen</h3>
+                      <ul className="space-y-1.5">
+                        {project.hypotheses!.map((h, i) => (
+                          <li key={i} className="flex gap-2 text-sm leading-relaxed text-neutral-700">
+                            <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+                            {h}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+                {(project.links?.length ?? 0) > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {project.links!.map((l) => (
+                      <span key={l.id} className="rounded-lg bg-neutral-100 px-2.5 py-1 text-xs font-semibold text-neutral-700">
+                        {l.label || l.url}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
 
             {on.shortlist && ranked.length > 0 && (
               <section className="mt-10">
@@ -224,6 +291,8 @@ export default function ReportPage() {
               </section>
             )}
 
+            <ReportBlocks blocks={blocks} placement="after-shortlist" />
+
             {on.themes && themes.length > 0 && (
               <section className="mt-10">
                 <SectionH2>Themes</SectionH2>
@@ -251,6 +320,8 @@ export default function ReportPage() {
                 </div>
               </section>
             )}
+
+            <ReportBlocks blocks={blocks} placement="after-themes" />
 
             {on.painpoints && ranked.length > 0 && (
               <section className="mt-10">
@@ -488,6 +559,8 @@ export default function ReportPage() {
                 )}
               </section>
             ) : null}
+
+            <ReportBlocks blocks={blocks} placement="bottom" />
           </>
         )}
 

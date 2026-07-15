@@ -35,10 +35,14 @@ export default function InsightsRecsTab({
   vault,
   onOpen,
   starredQuotes,
+  onEdit,
+  onDelete,
 }: {
   vault: Vault;
   onOpen: (n: Note) => void;
   starredQuotes?: Record<string, string[]>;
+  onEdit?: (n: Note) => void;
+  onDelete?: (n: Note) => void;
 }) {
   const insights = useMemo(() => notesOf(vault, "insight"), [vault]);
   const recs = useMemo(() => recTraces(vault), [vault]);
@@ -58,6 +62,8 @@ export default function InsightsRecsTab({
               note={n}
               onOpen={onOpen}
               starred={starredQuotes?.[n.slug]}
+              onEdit={onEdit}
+              onDelete={onDelete}
             />
           ))}
         </div>
@@ -76,6 +82,8 @@ export default function InsightsRecsTab({
                 note={r.note}
                 onOpen={onOpen}
                 starred={starredQuotes?.[r.note.slug]}
+                onEdit={onEdit}
+                onDelete={onDelete}
               />
               {r.anchorInsight && (
                 <button

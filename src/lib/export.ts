@@ -59,6 +59,39 @@ export function buildMarkdownReport(
   );
   push();
 
+  const blocksAt = (placement: string) => {
+    for (const b of project.reportBlocks ?? []) {
+      if (b.placement !== placement) continue;
+      if (!b.title.trim() && !b.body.trim()) continue;
+      if (b.title.trim()) push(`## ${b.title.trim()}`);
+      push();
+      if (b.body.trim()) push(b.body.trim());
+      push();
+    }
+  };
+
+  // research framing
+  if (project.goals?.length) {
+    push("## Research Goals");
+    push();
+    for (const g of project.goals) push(`- ${g}`);
+    push();
+  }
+  if (project.hypotheses?.length) {
+    push("## Hypothesen");
+    push();
+    for (const h of project.hypotheses) push(`- ${h}`);
+    push();
+  }
+  if (project.links?.length) {
+    push("## Relevante Links");
+    push();
+    for (const l of project.links) push(`- [${l.label || l.url}](${l.url})`);
+    push();
+  }
+
+  blocksAt("top");
+
   if (!vault) {
     push("_Noch kein Second-Brain-Export hochgeladen._");
     return lines.join("\n");
@@ -101,6 +134,8 @@ export function buildMarkdownReport(
     push();
   }
 
+  blocksAt("after-shortlist");
+
   // ---- themes ----
   if (themes.length) {
     push("## Themes");
@@ -124,6 +159,8 @@ export function buildMarkdownReport(
       push();
     }
   }
+
+  blocksAt("after-themes");
 
   // ---- pain points (all) ----
   if (ranked.length) {
@@ -273,6 +310,8 @@ export function buildMarkdownReport(
     push(project.notes.trim());
     push();
   }
+
+  blocksAt("bottom");
 
   push("---");
   push(

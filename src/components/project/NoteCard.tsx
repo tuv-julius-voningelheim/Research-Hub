@@ -24,12 +24,17 @@ export default function NoteCard({
   onOpen,
   showType,
   starred,
+  onEdit,
+  onDelete,
 }: {
   note: Note;
   onOpen: (n: Note) => void;
   showType?: boolean;
   /** curated quote keys for this note — preferred for the preview */
   starred?: string[];
+  /** edit affordance (app only, not in read-only share) */
+  onEdit?: (n: Note) => void;
+  onDelete?: (n: Note) => void;
 }) {
   const fm = note.frontmatter;
   const summary = summaryOf(note);
@@ -51,6 +56,16 @@ export default function NoteCard({
       >
         <div className="flex flex-wrap items-center gap-2">
           {showType && <TypePill type={note.type} />}
+          {note.manual && (
+            <span className="rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-bold text-violet-700">
+              Manuell
+            </span>
+          )}
+          {note.edited && (
+            <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-bold text-[#0057b8]">
+              Bearbeitet
+            </span>
+          )}
           <LevelBadge level={fm["severity"]} prefix="Severity" />
           <LevelBadge level={fm["priority"]} prefix="Priority" />
           <ConfidenceBadge level={fm["confidence"]} />
@@ -108,13 +123,34 @@ export default function NoteCard({
           {note.quotes.length > 0 && note.links.length > 0 && " · "}
           {note.links.length > 0 && `${note.links.length} Verknüpfungen`}
         </span>
-        <button
-          type="button"
-          onClick={() => onOpen(note)}
-          className="cursor-pointer font-bold text-[#004a99] hover:underline"
-        >
-          Öffnen →
-        </button>
+        <div className="flex items-center gap-2.5">
+          {onEdit && (
+            <button
+              type="button"
+              onClick={() => onEdit(note)}
+              className="cursor-pointer font-semibold text-neutral-500 hover:text-[#0057b8]"
+            >
+              Bearbeiten
+            </button>
+          )}
+          {onDelete && (
+            <button
+              type="button"
+              onClick={() => onDelete(note)}
+              className="cursor-pointer font-semibold text-neutral-400 hover:text-red-600"
+              title={note.manual ? "Löschen" : "Ausblenden"}
+            >
+              {note.manual ? "Löschen" : "Ausblenden"}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => onOpen(note)}
+            className="cursor-pointer font-bold text-[#004a99] hover:underline"
+          >
+            Öffnen →
+          </button>
+        </div>
       </div>
     </Card>
   );

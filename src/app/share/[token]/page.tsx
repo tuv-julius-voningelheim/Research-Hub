@@ -18,7 +18,7 @@ import {
   totalQuotes,
 } from "@/lib/analytics";
 import type { SearchSource } from "@/lib/search";
-import type { Note, NoteType, Vault } from "@/lib/types";
+import type { Note, NoteType, ProjectLink, ReportBlock, Vault } from "@/lib/types";
 import { BarRow, SEVERITY_COLOR } from "@/components/Bars";
 import InsightsRecsTab from "@/components/project/InsightsRecsTab";
 import NoteCard from "@/components/project/NoteCard";
@@ -45,6 +45,10 @@ interface SharedProject {
   createdAt: number;
   starredQuotes?: Record<string, string[]>;
   hiddenQuestions?: string[];
+  goals?: string[];
+  hypotheses?: string[];
+  links?: ProjectLink[];
+  reportBlocks?: ReportBlock[];
   vault: Vault | null;
 }
 
@@ -174,6 +178,12 @@ function ProjectView({
               vault={vault}
               onOpen={openFn}
               curation={{ hiddenQuestions: project.hiddenQuestions }}
+              context={{
+                goals: project.goals,
+                hypotheses: project.hypotheses,
+                links: project.links,
+              }}
+              reportBlocks={project.reportBlocks}
             />
           )}
           {tab === "insights-recs" && (
