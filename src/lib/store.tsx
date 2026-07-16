@@ -36,7 +36,9 @@ import type {
 import { extractEditable } from "./editable";
 
 const DB_KEY = "tuv-research-hub-v1";
-const REFRESH_INTERVAL_MS = 60_000;
+// gentle polling: focus refresh covers the common case; the interval is a
+// safety net. Keep it long — every check costs blob operations (quota!).
+const REFRESH_INTERVAL_MS = 300_000;
 
 export interface HubState {
   divisions: Division[];
@@ -56,6 +58,11 @@ interface HubContextValue {
   syncError: boolean;
   /** someone else changed the shared workspace since our last load */
   conflict: boolean;
+  /** blob storage suspended (quota) — working locally until it recovers */
+  storageDown: boolean;
+  /** server workspace is empty but this browser has cached data */
+  serverEmptyLocalData: boolean;
+  restoreToServer: () => Promise<void>;
   reloadShared: () => Promise<void>;
   addDivision: (name: string, description?: string) => Division;
   updateDivision: (id: string, patch: Partial<Division>) => void;
@@ -127,8 +134,20 @@ function stripVaults(s: HubState) {
   };
 }
 
-async function fetchSharedState(): Promise<{ rev: number; state: HubState } | null> {
+function isEmptyState(s: HubState | null | undefined): boolean {
+  return (
+    !s ||
+    ((s.divisions?.length ?? 0) === 0 &&
+      (s.programs?.length ?? 0) === 0 &&
+      (s.projects?.length ?? 0) === 0)
+  );
+}
+
+async function fetchSharedState(): Promise<
+  { rev: number; state: HubState } | "down" | null
+> {
   const res = await fetch("/api/state", { cache: "no-store" });
+  if (res.status === 503) return "down";
   if (!res.ok) return null;
   const structure = await res.json();
   const projects: Project[] = await Promise.all(
@@ -163,6 +182,8 @@ export function HubProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<HubMode>("loading");
   const [syncError, setSyncError] = useState(false);
   const [conflict, setConflict] = useState(false);
+  const [storageDown, setStorageDown] = useState(false);
+  const [serverEmptyLocalData, setServerEmptyLocalData] = useState(false);
 
   const stateRef = useRef(state);
   const modeRef = useRef(mode);
@@ -185,9 +206,33 @@ export function HubProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      const saved = await get<HubState>(DB_KEY);
       try {
         const shared = await fetchSharedState();
-        if (shared && !cancelled) {
+        if (cancelled) return;
+        if (shared === "down") {
+          // storage suspended: keep the local cache, work locally, banner up
+          if (saved) {
+            stateRef.current = saved;
+            setState(saved);
+          }
+          setStorageDown(true);
+          setMode("local");
+          setReady(true);
+          return;
+        }
+        if (shared) {
+          // guard: never clobber a non-empty local cache with an EMPTY
+          // server state — surface a restore offer instead
+          if (isEmptyState(shared.state) && saved && !isEmptyState(saved)) {
+            revRef.current = shared.rev;
+            stateRef.current = saved;
+            setState(saved);
+            setServerEmptyLocalData(true);
+            setMode("shared");
+            setReady(true);
+            return;
+          }
           applyShared(shared.rev, shared.state);
           setMode("shared");
           setReady(true);
@@ -196,8 +241,6 @@ export function HubProvider({ children }: { children: ReactNode }) {
       } catch {
         // network/API unavailable — local mode
       }
-      if (cancelled) return;
-      const saved = await get<HubState>(DB_KEY);
       if (cancelled) return;
       if (saved) {
         stateRef.current = saved;
@@ -215,10 +258,21 @@ export function HubProvider({ children }: { children: ReactNode }) {
     if (modeRef.current !== "shared") return;
     try {
       const shared = await fetchSharedState();
+      if (shared === "down") {
+        setStorageDown(true);
+        return;
+      }
       if (shared) {
+        // same guard as on init: an empty server state never overwrites data
+        if (isEmptyState(shared.state) && !isEmptyState(stateRef.current)) {
+          revRef.current = shared.rev;
+          setServerEmptyLocalData(true);
+          return;
+        }
         applyShared(shared.rev, shared.state);
         setConflict(false);
         setSyncError(false);
+        setStorageDown(false);
       }
     } catch {
       setSyncError(true);
@@ -230,7 +284,9 @@ export function HubProvider({ children }: { children: ReactNode }) {
     if (mode !== "shared") return;
 
     const check = async () => {
-      // don't refresh over unsaved local edits or an unresolved conflict
+      // don't refresh over unsaved local edits or an unresolved conflict,
+      // and don't burn blob quota while the tab is in the background
+      if (document.visibilityState === "hidden") return;
       if (pendingRef.current || conflictRef.current) return;
       try {
         const res = await fetch("/api/state", { cache: "no-store" });
@@ -316,6 +372,42 @@ export function HubProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("pagehide", flush);
     };
   }, [doPush]);
+
+  const restoreToServer = useCallback(async () => {
+    // push the local cache back to an empty (or recovered) server workspace
+    try {
+      const res = await fetch("/api/state", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          baseRev: revRef.current,
+          ...stripVaults(stateRef.current),
+        }),
+      });
+      if (!res.ok) {
+        if (res.status === 503) setStorageDown(true);
+        setSyncError(true);
+        return;
+      }
+      const data = await res.json();
+      if (typeof data.rev === "number") revRef.current = data.rev;
+      // re-upload every cached vault
+      for (const p of stateRef.current.projects) {
+        if (!p.vault) continue;
+        await fetch(`/api/vault?projectId=${encodeURIComponent(p.id)}`, {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(p.vault),
+        }).catch(() => {});
+      }
+      setServerEmptyLocalData(false);
+      setStorageDown(false);
+      setSyncError(false);
+      setMode("shared");
+    } catch {
+      setSyncError(true);
+    }
+  }, []);
 
   const persist = useCallback(
     (next: HubState) => {
@@ -822,6 +914,9 @@ export function HubProvider({ children }: { children: ReactNode }) {
         mode,
         syncError,
         conflict,
+        storageDown,
+        serverEmptyLocalData,
+        restoreToServer,
         reloadShared,
         addDivision,
         updateDivision,

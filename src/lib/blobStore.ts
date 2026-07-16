@@ -3,10 +3,23 @@
 // Overwritten blobs are CDN-cached for up to ~60s, so "write same pathname"
 // serves stale reads. Instead every write creates a NEW versioned pathname
 // (timestamp prefix); readers pick the newest, writers prune old versions.
-// Legacy single-file paths (state.json, vaults/<id>.json) are read as
-// fallback so existing workspaces migrate transparently.
+// Versioned pathnames are immutable → fetched WITHOUT cache-busting so the
+// CDN can cache them (keeps data-transfer usage low). Legacy single-file
+// paths (state.json, vaults/<id>.json) are read as fallback.
+//
+// Quota safety: if Vercel suspends the store (usage limits), blob downloads
+// return 403 "Your store is blocked" while list() still works — we surface
+// that as StorageSuspendedError so the API can answer 503 instead of
+// pretending the workspace is empty (which would clobber client caches).
 
 import { del, list, put } from "@vercel/blob";
+
+export class StorageSuspendedError extends Error {
+  constructor() {
+    super("blob store suspended");
+    this.name = "StorageSuspendedError";
+  }
+}
 
 function newest(paths: { pathname: string; url: string; uploadedAt: Date | string }[]) {
   // timestamp-prefixed filenames sort lexicographically; uploadedAt as tiebreaker
@@ -16,8 +29,14 @@ function newest(paths: { pathname: string; url: string; uploadedAt: Date | strin
   )[0];
 }
 
-async function fetchJson(url: string): Promise<Record<string, unknown> | null> {
-  const res = await fetch(`${url}?ts=${Date.now()}`, { cache: "no-store" });
+async function fetchJson(
+  url: string,
+  opts: { immutable?: boolean } = {}
+): Promise<Record<string, unknown> | null> {
+  // immutable (versioned) blobs never change → let the CDN cache them
+  const target = opts.immutable ? url : `${url}?ts=${Date.now()}`;
+  const res = await fetch(target, opts.immutable ? {} : { cache: "no-store" });
+  if (res.status === 403) throw new StorageSuspendedError();
   if (!res.ok) return null;
   return res.json();
 }
@@ -28,7 +47,7 @@ export async function readLatestJson(
 ): Promise<Record<string, unknown> | null> {
   const { blobs } = await list({ prefix: `${dir}/` });
   if (blobs.length > 0) {
-    const data = await fetchJson(newest(blobs).url);
+    const data = await fetchJson(newest(blobs).url, { immutable: true });
     if (data) return data;
   }
   if (legacyPath) {
@@ -45,6 +64,8 @@ export async function writeVersionedJson(dir: string, data: unknown): Promise<vo
     access: "public",
     addRandomSuffix: false,
     contentType: "application/json",
+    // long CDN cache is fine: the pathname is unique per version
+    cacheControlMaxAge: 31536000,
   });
   // prune: keep the 3 newest versions
   const { blobs } = await list({ prefix: `${dir}/` });

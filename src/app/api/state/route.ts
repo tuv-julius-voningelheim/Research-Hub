@@ -9,6 +9,7 @@
 import {
   STATE_DIR,
   STATE_LEGACY,
+  StorageSuspendedError,
   readLatestJson,
   writeVersionedJson,
 } from "@/lib/blobStore";
@@ -34,10 +35,22 @@ async function readCurrent() {
   };
 }
 
+function suspended() {
+  return new Response(JSON.stringify({ error: "storage-suspended" }), {
+    status: 503,
+    headers: { "content-type": "application/json" },
+  });
+}
+
 export async function GET() {
   if (!process.env.BLOB_READ_WRITE_TOKEN) return notConfigured();
-  const current = await readCurrent();
-  return Response.json(current, { headers: { "cache-control": "no-store" } });
+  try {
+    const current = await readCurrent();
+    return Response.json(current, { headers: { "cache-control": "no-store" } });
+  } catch (e) {
+    if (e instanceof StorageSuspendedError) return suspended();
+    throw e;
+  }
 }
 
 export async function PUT(req: Request) {
@@ -52,7 +65,13 @@ export async function PUT(req: Request) {
     return new Response("invalid state", { status: 400 });
   }
 
-  const current = await readCurrent();
+  let current;
+  try {
+    current = await readCurrent();
+  } catch (e) {
+    if (e instanceof StorageSuspendedError) return suspended();
+    throw e;
+  }
   if (body.baseRev !== current.rev) {
     return Response.json(
       { error: "conflict", rev: current.rev },

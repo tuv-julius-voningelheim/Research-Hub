@@ -2,6 +2,7 @@
 // (see blobStore.ts — avoids CDN staleness on overwrite).
 
 import {
+  StorageSuspendedError,
   deleteVersioned,
   readLatestJson,
   vaultDir,
@@ -27,7 +28,18 @@ export async function GET(req: Request) {
   if (!process.env.BLOB_READ_WRITE_TOKEN) return notConfigured();
   const id = projectIdFrom(req);
   if (!id) return new Response("projectId required", { status: 400 });
-  const data = await readLatestJson(vaultDir(id), vaultLegacy(id));
+  let data;
+  try {
+    data = await readLatestJson(vaultDir(id), vaultLegacy(id));
+  } catch (e) {
+    if (e instanceof StorageSuspendedError) {
+      return new Response(JSON.stringify({ error: "storage-suspended" }), {
+        status: 503,
+        headers: { "content-type": "application/json" },
+      });
+    }
+    throw e;
+  }
   if (!data) return new Response(null, { status: 404 });
   return Response.json(data, {
     headers: { "cache-control": "no-store" },

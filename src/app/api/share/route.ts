@@ -6,6 +6,7 @@
 import {
   STATE_DIR,
   STATE_LEGACY,
+  StorageSuspendedError,
   readLatestJson,
   vaultDir,
   vaultLegacy,
@@ -56,7 +57,18 @@ export async function GET(req: Request) {
     return new Response(null, { status: 404 });
   }
 
-  const state = (await readLatestJson(STATE_DIR, STATE_LEGACY)) as StoredState | null;
+  let state: StoredState | null;
+  try {
+    state = (await readLatestJson(STATE_DIR, STATE_LEGACY)) as StoredState | null;
+  } catch (e) {
+    if (e instanceof StorageSuspendedError) {
+      return new Response(JSON.stringify({ error: "storage-suspended" }), {
+        status: 503,
+        headers: { "content-type": "application/json" },
+      });
+    }
+    throw e;
+  }
   if (!state) return new Response(null, { status: 404 });
 
   const share = (state.shares ?? []).find((s) => s.token === token);
