@@ -1,14 +1,13 @@
-// Parsed vault payload per project, stored as versioned JSON blobs
-// (see blobStore.ts — avoids CDN staleness on overwrite).
+// Parsed vault payload per project. Stored via the dataStore abstraction —
+// a GitHub data branch when configured, Vercel Blob otherwise.
 
 import {
   StorageSuspendedError,
-  deleteVersioned,
-  readLatestJson,
-  vaultDir,
-  vaultLegacy,
-  writeVersionedJson,
-} from "@/lib/blobStore";
+  deleteVault,
+  readVault,
+  storeMode,
+  writeVault,
+} from "@/lib/dataStore";
 
 export const dynamic = "force-dynamic";
 
@@ -18,26 +17,28 @@ function projectIdFrom(req: Request): string | null {
 }
 
 function notConfigured() {
-  return new Response(JSON.stringify({ error: "blob-not-configured" }), {
+  return new Response(JSON.stringify({ error: "storage-not-configured" }), {
     status: 501,
     headers: { "content-type": "application/json" },
   });
 }
 
+function suspended() {
+  return new Response(JSON.stringify({ error: "storage-suspended" }), {
+    status: 503,
+    headers: { "content-type": "application/json" },
+  });
+}
+
 export async function GET(req: Request) {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) return notConfigured();
+  if (storeMode() === "none") return notConfigured();
   const id = projectIdFrom(req);
   if (!id) return new Response("projectId required", { status: 400 });
   let data;
   try {
-    data = await readLatestJson(vaultDir(id), vaultLegacy(id));
+    data = await readVault(id);
   } catch (e) {
-    if (e instanceof StorageSuspendedError) {
-      return new Response(JSON.stringify({ error: "storage-suspended" }), {
-        status: 503,
-        headers: { "content-type": "application/json" },
-      });
-    }
+    if (e instanceof StorageSuspendedError) return suspended();
     throw e;
   }
   if (!data) return new Response(null, { status: 404 });
@@ -47,21 +48,31 @@ export async function GET(req: Request) {
 }
 
 export async function PUT(req: Request) {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) return notConfigured();
+  if (storeMode() === "none") return notConfigured();
   const id = projectIdFrom(req);
   if (!id) return new Response("projectId required", { status: 400 });
   const parsed = await req.json();
   if (!Array.isArray(parsed.notes)) {
     return new Response("invalid vault", { status: 400 });
   }
-  await writeVersionedJson(vaultDir(id), parsed);
+  try {
+    await writeVault(id, parsed);
+  } catch (e) {
+    if (e instanceof StorageSuspendedError) return suspended();
+    throw e;
+  }
   return new Response(null, { status: 204 });
 }
 
 export async function DELETE(req: Request) {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) return notConfigured();
+  if (storeMode() === "none") return notConfigured();
   const id = projectIdFrom(req);
   if (!id) return new Response("projectId required", { status: 400 });
-  await deleteVersioned(vaultDir(id), vaultLegacy(id));
+  try {
+    await deleteVault(id);
+  } catch (e) {
+    if (e instanceof StorageSuspendedError) return suspended();
+    throw e;
+  }
   return new Response(null, { status: 204 });
 }

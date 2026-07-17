@@ -4,13 +4,11 @@
 // Excluded from the password gate in middleware.
 
 import {
-  STATE_DIR,
-  STATE_LEGACY,
   StorageSuspendedError,
-  readLatestJson,
-  vaultDir,
-  vaultLegacy,
-} from "@/lib/blobStore";
+  readStateDoc,
+  readVault,
+  storeMode,
+} from "@/lib/dataStore";
 import { effectiveVault } from "@/lib/editable";
 import type { Project, Vault } from "@/lib/types";
 
@@ -46,8 +44,8 @@ interface StoredState {
 }
 
 export async function GET(req: Request) {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    return new Response(JSON.stringify({ error: "blob-not-configured" }), {
+  if (storeMode() === "none") {
+    return new Response(JSON.stringify({ error: "storage-not-configured" }), {
       status: 501,
       headers: { "content-type": "application/json" },
     });
@@ -59,7 +57,7 @@ export async function GET(req: Request) {
 
   let state: StoredState | null;
   try {
-    state = (await readLatestJson(STATE_DIR, STATE_LEGACY)) as StoredState | null;
+    state = (await readStateDoc()).data as StoredState | null;
   } catch (e) {
     if (e instanceof StorageSuspendedError) {
       return new Response(JSON.stringify({ error: "storage-suspended" }), {
@@ -122,7 +120,7 @@ export async function GET(req: Request) {
   const projects = await Promise.all(
     scopedProjects.map(async (p) => {
       const rawVault = p.hasVault
-        ? ((await readLatestJson(vaultDir(p.id), vaultLegacy(p.id))) as Vault | null)
+        ? ((await readVault(p.id)) as Vault | null)
         : null;
       // apply manual edits / manual notes / soft-hides server-side
       const vault =
