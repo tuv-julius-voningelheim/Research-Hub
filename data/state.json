@@ -1,1 +1,1 @@
-{"rev":1,"divisions":[],"programs":[],"projects":[],"shares":[]}
+{"rev":2,"divisions":[{"id":"oz92jya6mrj106pt","name":"Product Service","createdAt":1783935278849}],"programs":[{"id":"oflwcz0bmrj106pt","divisionId":"oz92jya6mrj106pt","name":"MACE","createdAt":1783935278849}],"projects":[{"id":"fztu6germrj106pt","createdAt":1783935278849,"programId":"oflwcz0bmrj106pt","name":"Second Brain Test 1","status":"in-analysis","method":"User Interviews","description":"Beispieldaten: MACE / MHS User Interviews (Second-Brain-Export)","hasVault":true}],"shares":[]}
