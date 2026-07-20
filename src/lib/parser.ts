@@ -68,12 +68,27 @@ function extractQuotes(body: string): Quote[] {
     }
     text = text.trim();
     if (!text) continue;
+    // drop "Translation: …" continuations (derived content appended to the
+    // original quote in the same blockquote — it would swallow the attribution)
+    const tr = text.match(/\s+Translation:\s*["„“]/);
+    if (tr && tr.index) text = text.slice(0, tr.index).trim();
     // attribution: "… — INT-001" (possibly with trailing note in parens)
     let source: string | undefined;
     const attr = text.match(/[—–]\s*([^—–]+)$/);
     if (attr && attr[1].trim().length <= 80) {
       source = attr[1].trim();
       text = text.slice(0, attr.index).trim();
+    }
+    // ASCII-hyphen attribution ("… " - P05") — only accept id-like sources
+    // so hyphens inside the quote text are never mistaken for attribution
+    if (!source) {
+      const hy = text.match(
+        /\s-\s+([A-Za-z]{1,8}[-_ ]?\d{1,4}(?:\s*[,&+]\s*[A-Za-z]{1,8}[-_ ]?\d{1,4})*)$/
+      );
+      if (hy) {
+        source = hy[1].trim();
+        text = text.slice(0, hy.index).trim();
+      }
     }
     // meaning-unit code on the following non-quote line: "Code: #code/xyz"
     let code: string | undefined;
@@ -116,7 +131,7 @@ function extractTitle(body: string, fallback: string): string {
   const m = body.match(/^#\s+(.+)$/m);
   if (!m) return fallback;
   return m[1]
-    .replace(/^(Interview|Theme|Pain Point|Need|Insight|Recommendation|Persona)\s*:\s*/i, "")
+    .replace(/^(Interview|Theme|Pain Point|Positive Pattern|Need|Insight|Recommendation|Persona)\s*:\s*/i, "")
     .trim();
 }
 
@@ -125,7 +140,9 @@ function extractTitle(body: string, fallback: string): string {
 const FOLDER_TYPE: [RegExp, NoteType][] = [
   [/interview/i, "interview"],
   [/theme/i, "theme"],
+  [/positive[-_ ]?pattern/i, "positive-pattern"],
   [/pain[-_ ]?point/i, "pain-point"],
+  [/\bpains?\b/i, "pain-point"], // e.g. "03_pains"
   [/need/i, "need"],
   [/insight/i, "insight"],
   [/recommendation/i, "recommendation"],
@@ -140,6 +157,8 @@ const FM_TYPE: Record<string, NoteType> = {
   theme: "theme",
   "pain-point": "pain-point",
   painpoint: "pain-point",
+  "positive-pattern": "positive-pattern",
+  positivepattern: "positive-pattern",
   need: "need",
   insight: "insight",
   recommendation: "recommendation",
@@ -150,6 +169,7 @@ const TITLE_TYPE: [RegExp, NoteType][] = [
   [/^interview\b/i, "interview"],
   [/^theme\s*:/i, "theme"],
   [/^pain\s*point\s*:/i, "pain-point"],
+  [/^positive\s*pattern\s*:/i, "positive-pattern"],
   [/^need\s*:/i, "need"],
   [/^insight\s*:/i, "insight"],
   [/^recommendation\s*:/i, "recommendation"],
@@ -163,6 +183,9 @@ function classify(path: string, fm: Record<string, string>, body: string): NoteT
   if (folders.some((f) => /template/i.test(f))) return "template";
   const typ = (fm["typ"] || fm["type"])?.toLowerCase();
   if (typ && FM_TYPE[typ]) return FM_TYPE[typ];
+  // untyped meta/index files (_register.md, _status.md, …) are working
+  // documents — keep them out of the findings and show them under Files
+  if (parts[parts.length - 1].startsWith("_")) return "wiki";
   // a note filed in the wrong folder (e.g. a theme inside 07_personas)
   // usually still announces its type in the H1 — trust that before the folder
   const h1 = body.match(/^#\s+(.+)$/m)?.[1]?.trim();

@@ -19,6 +19,7 @@ import type {
 export const EDITABLE_TYPES: NoteType[] = [
   "theme",
   "pain-point",
+  "positive-pattern",
   "need",
   "insight",
   "recommendation",
@@ -28,6 +29,7 @@ export const EDITABLE_TYPES: NoteType[] = [
 export const TYPE_TITLE: Record<string, string> = {
   theme: "Theme",
   "pain-point": "Pain Point",
+  "positive-pattern": "Positive Pattern",
   need: "Need",
   insight: "Insight",
   recommendation: "Recommendation",
@@ -40,6 +42,8 @@ export interface MetaField {
   key: string; // frontmatter key
   label: string;
   options?: string[]; // select; omit for free text
+  /** alternative frontmatter keys (e.g. English exports) */
+  alt?: string[];
 }
 
 export interface RefField {
@@ -52,6 +56,8 @@ export interface TextField {
   key: string; // label used as **Label:** and note.fields key
   label: string;
   placeholder?: string;
+  /** alternative field/section labels (e.g. English exports) */
+  alt?: string[];
 }
 
 interface TypeSchema {
@@ -81,10 +87,24 @@ export const SCHEMA: Record<string, TypeSchema> = {
     ],
     refs: [{ key: "theme", label: "Zugehöriges Theme", refType: "theme" }],
     fields: [
-      { key: "Beschreibung", label: "Beschreibung" },
+      { key: "Beschreibung", label: "Beschreibung", alt: ["Description"] },
       { key: "Trigger", label: "Trigger" },
       { key: "Impact", label: "Impact" },
       { key: "Workaround", label: "Workaround" },
+    ],
+    primary: "Beschreibung",
+  },
+  "positive-pattern": {
+    meta: [{ key: "confidence", label: "Confidence", options: CONF }],
+    refs: [{ key: "theme", label: "Zugehöriges Theme", refType: "theme" }],
+    fields: [
+      { key: "Beschreibung", label: "Beschreibung", alt: ["Description"] },
+      { key: "Warum es funktioniert", label: "Warum es funktioniert", alt: ["Why it works"] },
+      {
+        key: "Risiko",
+        label: "Risiko bei Wegfall",
+        alt: ["Risk if removed/redesigned away", "Risk"],
+      },
     ],
     primary: "Beschreibung",
   },
@@ -94,10 +114,11 @@ export const SCHEMA: Record<string, TypeSchema> = {
         key: "kategorie",
         label: "Kategorie",
         options: ["Funktional", "Emotional", "Sozial", "Latent"],
+        alt: ["category"],
       },
     ],
     refs: [{ key: "theme", label: "Zugehöriges Theme", refType: "theme" }],
-    fields: [{ key: "Beschreibung", label: "Beschreibung" }],
+    fields: [{ key: "Beschreibung", label: "Beschreibung", alt: ["Description"] }],
     primary: "Beschreibung",
   },
   insight: {
@@ -114,9 +135,9 @@ export const SCHEMA: Record<string, TypeSchema> = {
     meta: [{ key: "priority", label: "Priority", options: CONF }],
     refs: [{ key: "anchorInsight", label: "Anker-Insight", refType: "insight" }],
     fields: [
-      { key: "Empfehlung", label: "Empfehlung" },
-      { key: "Erwarteter Effekt", label: "Erwarteter Effekt" },
-      { key: "Risiko", label: "Risiko" },
+      { key: "Empfehlung", label: "Empfehlung", alt: ["Recommendation"] },
+      { key: "Erwarteter Effekt", label: "Erwarteter Effekt", alt: ["Expected Effect"] },
+      { key: "Risiko", label: "Risiko", alt: ["Risk"] },
     ],
     primary: "Empfehlung",
   },
@@ -127,8 +148,8 @@ export const SCHEMA: Record<string, TypeSchema> = {
     ],
     refs: [],
     fields: [
-      { key: "Kontext", label: "Kontext" },
-      { key: "Ziele", label: "Ziele" },
+      { key: "Kontext", label: "Kontext", alt: ["Context"] },
+      { key: "Ziele", label: "Ziele", alt: ["Goals"] },
     ],
     primary: "Kontext",
   },
@@ -148,7 +169,9 @@ export function extractEditable(note: Note): EditableContent {
   const fields: Record<string, string> = {};
   if (schema) {
     for (const m of schema.meta) {
-      const v = note.frontmatter[m.key];
+      const v =
+        note.frontmatter[m.key] ??
+        (m.alt ?? []).map((k) => note.frontmatter[k]).find(Boolean);
       if (v) meta[m.key] = v;
     }
     for (const r of schema.refs) {
@@ -157,7 +180,10 @@ export function extractEditable(note: Note): EditableContent {
       if (fmRef) refs[r.key] = fmRef;
     }
     for (const f of schema.fields) {
-      const v = note.fields[f.key] || note.sections[f.key];
+      const keys = [f.key, ...(f.alt ?? [])];
+      const v = keys
+        .map((k) => note.fields[k] || note.sections[k])
+        .find(Boolean);
       if (v) fields[f.key] = v.trim();
     }
     // fall back: primary field from first section if nothing matched

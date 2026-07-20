@@ -4,6 +4,7 @@
 import {
   CONFIDENCE_ORDER,
   SEVERITY_ORDER,
+  categoryOf,
   confidenceOf,
   priorityOf,
   severityOf,
@@ -21,6 +22,7 @@ export function byType(vault: Vault | undefined): Record<NoteType, Note[]> {
     interview: [],
     theme: [],
     "pain-point": [],
+    "positive-pattern": [],
     need: [],
     insight: [],
     recommendation: [],
@@ -45,6 +47,7 @@ export function findingsCount(vault: Vault | undefined): number {
   return (
     t.theme.length +
     t["pain-point"].length +
+    t["positive-pattern"].length +
     t.need.length +
     t.insight.length +
     t.recommendation.length +
@@ -135,11 +138,12 @@ export const confidenceDistribution = (vault: Vault | undefined, type: NoteType)
   distribution(notesOf(vault, type), confidenceOf, ["hoch", "mittel", "niedrig"]);
 
 export const needCategoryDistribution = (vault: Vault | undefined) =>
-  distribution(
-    notesOf(vault, "need"),
-    (n) => n.frontmatter["kategorie"],
-    ["funktional", "emotional", "sozial", "latent"]
-  );
+  distribution(notesOf(vault, "need"), categoryOf, [
+    "funktional",
+    "emotional",
+    "sozial",
+    "latent",
+  ]);
 
 // ---- theme aggregation ----
 
@@ -169,7 +173,7 @@ export function themeSummaries(vault: Vault | undefined): ThemeSummary[] {
           parseInt(note.frontmatter["interview_count"] ?? "0", 10) ||
           new Set(
             note.quotes
-              .map((q) => q.source?.match(/INT-\d+/)?.[0])
+              .map((q) => q.source?.match(/(?:INT-|P)\d+/)?.[0])
               .filter(Boolean)
           ).size,
         quoteCount:
@@ -425,7 +429,10 @@ export function codesIndex(vault: Vault | undefined): CodeEntry[] {
         e.quotes.push({
           note: n,
           text: q.text,
-          source: n.frontmatter["teilnehmer_id"] || n.title,
+          source:
+            n.frontmatter["teilnehmer_id"] ||
+            n.frontmatter["participant_id"] ||
+            n.title,
         });
       }
     } else {

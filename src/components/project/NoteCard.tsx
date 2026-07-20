@@ -4,7 +4,14 @@
 // badges and the first representative quote.
 
 import { interviewMeta } from "@/lib/analytics";
-import { quoteKey, type Note } from "@/lib/types";
+import {
+  categoryOf,
+  confidenceOf,
+  priorityOf,
+  quoteKey,
+  severityOf,
+  type Note,
+} from "@/lib/types";
 import { Card, ConfidenceBadge, LevelBadge } from "@/components/ui";
 import { TypePill } from "./NoteDrawer";
 
@@ -12,8 +19,10 @@ function summaryOf(n: Note): string | undefined {
   const f = n.fields;
   return (
     f["Beschreibung"] ||
+    f["Description"] ||
     f["Insight"] ||
     f["Empfehlung"] ||
+    f["Recommendation"] ||
     n.sections["Definition"] ||
     undefined
   );
@@ -44,7 +53,7 @@ export default function NoteCard({
       ? note.quotes.find((q) => starred.includes(quoteKey(q.text)))
       : undefined) ?? note.quotes[0];
   const isStarredQuote = !!(quote && starred?.includes(quoteKey(quote.text)));
-  const kategorie = fm["kategorie"] || note.fields["Kategorie"];
+  const kategorie = categoryOf(note);
   const meta = note.type === "interview" ? interviewMeta(note) : undefined;
 
   return (
@@ -66,9 +75,9 @@ export default function NoteCard({
               Bearbeitet
             </span>
           )}
-          <LevelBadge level={fm["severity"]} prefix="Severity" />
-          <LevelBadge level={fm["priority"]} prefix="Priority" />
-          <ConfidenceBadge level={fm["confidence"]} />
+          <LevelBadge level={severityOf(note)} prefix="Severity" />
+          <LevelBadge level={priorityOf(note)} prefix="Priority" />
+          <ConfidenceBadge level={confidenceOf(note)} />
           {kategorie && (
             <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-amber-200">
               {kategorie}

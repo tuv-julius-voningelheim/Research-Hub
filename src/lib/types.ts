@@ -133,6 +133,7 @@ export type NoteType =
   | "interview"
   | "theme"
   | "pain-point"
+  | "positive-pattern"
   | "need"
   | "insight"
   | "recommendation"
@@ -200,14 +201,47 @@ export const SEVERITY_ORDER: Record<string, number> = {
   niedrig: 1,
 };
 
+// Vault exports come in German ("Hoch") or English ("High") — analytics,
+// matrix rows and badge colors all key on the German vocabulary, so
+// normalize English values to it.
+const LEVEL_MAP: Record<string, string> = {
+  critical: "kritisch",
+  high: "hoch",
+  medium: "mittel",
+  low: "niedrig",
+};
+
+export function normalizeLevel(v: string | undefined): string | undefined {
+  const s = v?.trim().toLowerCase();
+  if (!s) return undefined;
+  return LEVEL_MAP[s] ?? s;
+}
+
 export function confidenceOf(n: Note): string | undefined {
-  return n.frontmatter["confidence"]?.toLowerCase();
+  return normalizeLevel(n.frontmatter["confidence"]);
 }
 
 export function severityOf(n: Note): string | undefined {
-  return n.frontmatter["severity"]?.toLowerCase();
+  return normalizeLevel(n.frontmatter["severity"]);
 }
 
 export function priorityOf(n: Note): string | undefined {
-  return n.frontmatter["priority"]?.toLowerCase();
+  return normalizeLevel(n.frontmatter["priority"]);
+}
+
+const CATEGORY_MAP: Record<string, string> = {
+  functional: "funktional",
+  social: "sozial",
+};
+
+/** need category (kategorie/category, German or English values) */
+export function categoryOf(n: Note): string | undefined {
+  const raw =
+    n.frontmatter["kategorie"] ||
+    n.frontmatter["category"] ||
+    n.fields["Kategorie"] ||
+    n.fields["Category"];
+  const s = raw?.trim().toLowerCase();
+  if (!s) return undefined;
+  return CATEGORY_MAP[s] ?? s;
 }

@@ -12,7 +12,7 @@ import {
   themeSummaries,
   totalQuotes,
 } from "./analytics";
-import { quoteKey, type Note, type Project } from "./types";
+import { categoryOf, quoteKey, type Note, type Project } from "./types";
 import { htmlToMarkdown } from "./richtext";
 
 function cap(s: string): string {
@@ -102,6 +102,7 @@ export function buildMarkdownReport(
   const interviews = notesOf(vault, "interview");
   const ranked = rankPainPoints(vault);
   const themes = themeSummaries(vault);
+  const positives = notesOf(vault, "positive-pattern");
   const needs = notesOf(vault, "need");
   const insights = notesOf(vault, "insight");
   const recs = recTraces(vault);
@@ -117,6 +118,7 @@ export function buildMarkdownReport(
   push(`| Interviews | ${interviews.length} |`);
   push(`| Themes | ${themes.length} |`);
   push(`| Pain Points | ${ranked.length} |`);
+  if (positives.length) push(`| Positive Patterns | ${positives.length} |`);
   push(`| Needs | ${needs.length} |`);
   push(`| Insights | ${insights.length} |`);
   push(`| Recommendations | ${recs.length} |`);
@@ -190,14 +192,42 @@ export function buildMarkdownReport(
     }
   }
 
+  // ---- positive patterns ----
+  if (positives.length) {
+    push("## Positive Patterns (was gut funktioniert)");
+    push();
+    for (const n of positives) {
+      push(`### ${n.title}`);
+      push();
+      const f = n.fields;
+      for (const [de, keys] of [
+        ["Beschreibung", ["Beschreibung", "Description"]],
+        ["Warum es funktioniert", ["Warum es funktioniert", "Why it works"]],
+        ["Risiko bei Wegfall", ["Risiko", "Risk if removed/redesigned away", "Risk"]],
+      ] as [string, string[]][]) {
+        const v = keys.map((k) => f[k]).find(Boolean);
+        if (v) {
+          push(`**${de}:** ${stripWiki(v)}`);
+          push();
+        }
+      }
+      const qs = quoteLines(n, 2, project.starredQuotes?.[n.slug]);
+      if (qs.length) {
+        qs.forEach((q) => push(q));
+        push();
+      }
+    }
+  }
+
   // ---- needs ----
   if (needs.length) {
     push("## Needs");
     push();
     for (const n of needs) {
-      const kategorie = n.frontmatter["kategorie"] || n.fields["Kategorie"];
+      const kategorie = categoryOf(n);
+      const desc = n.fields["Beschreibung"] || n.fields["Description"];
       push(
-        `- **${n.title}**${kategorie ? ` _(${kategorie})_` : ""}${n.fields["Beschreibung"] ? ` — ${stripWiki(n.fields["Beschreibung"])}` : ""}`
+        `- **${n.title}**${kategorie ? ` _(${kategorie})_` : ""}${desc ? ` — ${stripWiki(desc)}` : ""}`
       );
     }
     push();

@@ -14,6 +14,7 @@ const TYPE_FILTERS: (NoteType | "all")[] = [
   "all",
   "theme",
   "pain-point",
+  "positive-pattern",
   "need",
   "insight",
   "recommendation",

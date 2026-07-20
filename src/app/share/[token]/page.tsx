@@ -64,6 +64,7 @@ const PROJECT_TABS: { key: string; label: string; types: NoteType[] }[] = [
   { key: "overview", label: "Overview", types: [] },
   { key: "themes", label: "Themes", types: ["theme"] },
   { key: "pain-points", label: "Pain Points", types: ["pain-point"] },
+  { key: "positives", label: "Positives", types: ["positive-pattern"] },
   { key: "needs", label: "Needs", types: ["need"] },
   { key: "insights-recs", label: "Insights & Recs", types: ["insight", "recommendation"] },
   { key: "personas", label: "Personas", types: ["persona"] },

@@ -6,13 +6,21 @@
 import { useEffect, useMemo } from "react";
 import Markdown from "@/components/Markdown";
 import { backlinks, slugIndex } from "@/lib/analytics";
-import type { Note, Vault } from "@/lib/types";
+import {
+  categoryOf,
+  confidenceOf,
+  priorityOf,
+  severityOf,
+  type Note,
+  type Vault,
+} from "@/lib/types";
 import { ConfidenceBadge, LevelBadge } from "@/components/ui";
 
 export const TYPE_LABEL: Record<string, string> = {
   interview: "Interview",
   theme: "Theme",
   "pain-point": "Pain Point",
+  "positive-pattern": "Positive Pattern",
   need: "Need",
   insight: "Insight",
   recommendation: "Recommendation",
@@ -28,6 +36,7 @@ export const TYPE_TONE: Record<string, string> = {
   interview: "bg-sky-100 text-sky-800",
   theme: "bg-indigo-100 text-indigo-800",
   "pain-point": "bg-rose-100 text-rose-800",
+  "positive-pattern": "bg-lime-100 text-lime-800",
   need: "bg-amber-100 text-amber-800",
   insight: "bg-emerald-100 text-emerald-800",
   recommendation: "bg-teal-100 text-teal-800",
@@ -49,9 +58,9 @@ export function TypePill({ type }: { type: string }) {
   );
 }
 
-/** strip "## Referenz…" sections — internal methodology pointers, not results */
+/** strip "## Referenz…"/"## Reference…" sections — methodology pointers, not results */
 function stripReferenz(body: string): string {
-  return body.replace(/^##\s+Referenz[^\n]*\n[\s\S]*?(?=^##\s|(?![\s\S]))/gm, "");
+  return body.replace(/^##\s+Referen(?:z|ce)[^\n]*\n[\s\S]*?(?=^##\s|(?![\s\S]))/gm, "");
 }
 
 export default function NoteDrawer({
@@ -106,9 +115,9 @@ export default function NoteDrawer({
                   Bearbeitet
                 </span>
               )}
-              <LevelBadge level={fm["severity"]} prefix="Severity" />
-              <LevelBadge level={fm["priority"]} prefix="Priority" />
-              <ConfidenceBadge level={fm["confidence"]} />
+              <LevelBadge level={severityOf(note)} prefix="Severity" />
+              <LevelBadge level={priorityOf(note)} prefix="Priority" />
+              <ConfidenceBadge level={confidenceOf(note)} />
             </div>
             <div className="flex shrink-0 items-center gap-1">
               {onEdit && (
@@ -150,9 +159,7 @@ export default function NoteDrawer({
             {/* interview filenames contain participant names — folder only */}
             <span>{note.type === "interview" ? note.folder : note.path}</span>
             {fm["segment"] && <span>Segment: {fm["segment"]}</span>}
-            {(fm["kategorie"] || note.fields["Kategorie"]) && (
-              <span>Kategorie: {fm["kategorie"] || note.fields["Kategorie"]}</span>
-            )}
+            {categoryOf(note) && <span>Kategorie: {categoryOf(note)}</span>}
             {fm["status"] && <span>Status: {fm["status"]}</span>}
             {note.quotes.length > 0 && <span>{note.quotes.length} Zitate</span>}
           </div>
