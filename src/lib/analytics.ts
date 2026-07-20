@@ -80,6 +80,15 @@ export interface RankedPainPoint {
 }
 
 function evidenceCount(n: Note): number {
+  // the evidence unit is DISTINCT INTERVIEWS — newer exports carry an
+  // interview_ids list, while evidence_count there counts quotes and would
+  // overstate the evidence (e.g. 14 quotes from 8 interviews)
+  const ids =
+    n.frontmatter["interview_ids"] || n.fields["Interview IDs"] || "";
+  const idMatches = ids.match(/[A-Za-z]+[-_]?\d+/g);
+  if (idMatches?.length) {
+    return new Set(idMatches.map((s) => s.toUpperCase())).size;
+  }
   const f =
     n.fields["Evidence Count"] || n.frontmatter["evidence_count"] || "";
   const m = f.match(/\d+/);
