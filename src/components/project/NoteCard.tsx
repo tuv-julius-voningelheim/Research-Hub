@@ -4,6 +4,7 @@
 // badges and the first representative quote.
 
 import { interviewMeta } from "@/lib/analytics";
+import { useLang } from "@/lib/i18n";
 import {
   categoryOf,
   confidenceOf,
@@ -45,6 +46,7 @@ export default function NoteCard({
   onEdit?: (n: Note) => void;
   onDelete?: (n: Note) => void;
 }) {
+  const { t } = useLang();
   const fm = note.frontmatter;
   const summary = summaryOf(note);
   // prefer a curated "killer quote" over the first one
@@ -67,12 +69,12 @@ export default function NoteCard({
           {showType && <TypePill type={note.type} />}
           {note.manual && (
             <span className="rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-bold text-violet-700">
-              Manuell
+              {t("Manuell")}
             </span>
           )}
           {note.edited && (
             <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-bold text-[#0057b8]">
-              Bearbeitet
+              {t("Bearbeitet")}
             </span>
           )}
           <LevelBadge level={severityOf(note)} prefix="Severity" />
@@ -128,9 +130,9 @@ export default function NoteCard({
 
       <div className="mt-3 flex items-center justify-between border-t border-neutral-100 pt-2.5 text-xs text-neutral-400">
         <span>
-          {note.quotes.length > 0 && `${note.quotes.length} Zitate`}
+          {note.quotes.length > 0 && `${note.quotes.length} ${t("Zitate")}`}
           {note.quotes.length > 0 && note.links.length > 0 && " · "}
-          {note.links.length > 0 && `${note.links.length} Verknüpfungen`}
+          {note.links.length > 0 && `${note.links.length} ${t("Verknüpfungen")}`}
         </span>
         <div className="flex items-center gap-2.5">
           {onEdit && (
@@ -139,7 +141,7 @@ export default function NoteCard({
               onClick={() => onEdit(note)}
               className="cursor-pointer font-semibold text-neutral-500 hover:text-[#0057b8]"
             >
-              Bearbeiten
+              {t("Bearbeiten")}
             </button>
           )}
           {onDelete && (
@@ -147,9 +149,9 @@ export default function NoteCard({
               type="button"
               onClick={() => onDelete(note)}
               className="cursor-pointer font-semibold text-neutral-400 hover:text-red-600"
-              title={note.manual ? "Löschen" : "Ausblenden"}
+              title={note.manual ? t("Löschen") : t("Ausblenden")}
             >
-              {note.manual ? "Löschen" : "Ausblenden"}
+              {note.manual ? t("Löschen") : t("Ausblenden")}
             </button>
           )}
           <button
@@ -157,7 +159,7 @@ export default function NoteCard({
             onClick={() => onOpen(note)}
             className="cursor-pointer font-bold text-[#004a99] hover:underline"
           >
-            Öffnen →
+            {t("Öffnen →")}
           </button>
         </div>
       </div>

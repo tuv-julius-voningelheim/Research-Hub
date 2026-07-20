@@ -3,6 +3,7 @@
 // Reusable read-only-link manager for projects, programs and divisions.
 
 import { useState } from "react";
+import { useLang } from "@/lib/i18n";
 import { useHub } from "@/lib/store";
 import { shareKindOf, shareTargetOf, type ShareKind } from "@/lib/types";
 import { Modal, btnSecondary, inputCls } from "@/components/ui";
@@ -23,6 +24,7 @@ export default function ShareModal({
   onClose: () => void;
 }) {
   const { state, createShare, removeShare } = useHub();
+  const { t, tf } = useLang();
   const [copied, setCopied] = useState<string | null>(null);
 
   const shares = (state.shares ?? []).filter(
@@ -30,16 +32,14 @@ export default function ShareModal({
   );
 
   return (
-    <Modal title="Read-only-Link teilen" onClose={onClose}>
+    <Modal title={t("Read-only-Link teilen")} onClose={onClose}>
       <p className="mb-4 text-sm leading-relaxed text-neutral-600">
-        Wer den Link hat, sieht die Ergebnisse {KIND_LABEL[kind]} —
-        schreibgeschützt, mit eigener Suche, ohne Zugriff auf den Rest des Hubs.
-        Links lassen sich jederzeit widerrufen.
+        {tf("Wer den Link hat, sieht die Ergebnisse {scope} — schreibgeschützt, mit eigener Suche, ohne Zugriff auf den Rest des Hubs. Links lassen sich jederzeit widerrufen.", { scope: t(KIND_LABEL[kind]) })}
       </p>
 
       {shares.length === 0 ? (
         <p className="mb-4 rounded-lg bg-neutral-50 px-3 py-4 text-center text-sm text-neutral-400 ring-1 ring-neutral-200">
-          Noch kein Link erstellt.
+          {t("Noch kein Link erstellt.")}
         </p>
       ) : (
         <ul className="mb-4 space-y-2">
@@ -62,11 +62,11 @@ export default function ShareModal({
                     setTimeout(() => setCopied(null), 1500);
                   }}
                 >
-                  {copied === s.token ? "Kopiert ✓" : "Kopieren"}
+                  {copied === s.token ? t("Kopiert ✓") : t("Kopieren")}
                 </button>
                 <button
                   type="button"
-                  title="Link widerrufen"
+                  title={t("Link widerrufen")}
                   onClick={() => removeShare(s.token)}
                   className="cursor-pointer rounded-lg p-2 text-neutral-400 transition-colors hover:bg-red-50 hover:text-red-600"
                 >
@@ -91,7 +91,7 @@ export default function ShareModal({
           setTimeout(() => setCopied(null), 1500);
         }}
       >
-        + Neuen Link erstellen (wird kopiert)
+        {t("+ Neuen Link erstellen (wird kopiert)")}
       </button>
     </Modal>
   );

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { notesOf } from "@/lib/analytics";
+import { useLang } from "@/lib/i18n";
 import { divisionOf, useHub } from "@/lib/store";
 import type { Project, ProjectStatus } from "@/lib/types";
 import {
@@ -21,6 +22,7 @@ import { FileIcon, FolderIcon, UsersIcon } from "@/components/icons";
 export default function ProjectsPage() {
   const { state, ready, addProgram, addDivision, addProject, updateProject, removeProject } =
     useHub();
+  const { t } = useLang();
   const [filter, setFilter] = useState("");
   const [editing, setEditing] = useState<Project | "new" | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Project | null>(null);
@@ -99,11 +101,11 @@ export default function ProjectsPage() {
 
       {ready && visible.length === 0 ? (
         <EmptyState
-          title={filter ? "Keine Treffer" : "Noch keine Projects"}
+          title={filter ? t("Keine Treffer") : t("Noch keine Projects")}
           hint={
             filter
-              ? "Filter anpassen."
-              : "Lege ein Projekt an und lade danach den Second-Brain-Export (ZIP) hoch."
+              ? t("Filter anpassen.")
+              : t("Lege ein Projekt an und lade danach den Second-Brain-Export (ZIP) hoch.")
           }
         />
       ) : (
@@ -152,9 +154,15 @@ export default function ProjectsPage() {
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center justify-between border-t border-neutral-100 bg-neutral-50/60 px-4 py-2.5">
-                  <Chip>{p.vault ? p.vault.name : "No upload yet"}</Chip>
-                  <div className="flex items-center gap-1.5">
+                <div className="flex items-center justify-between gap-2 border-t border-neutral-100 bg-neutral-50/60 px-4 py-2.5">
+                  {/* long ZIP names must truncate instead of pushing Open out of the card */}
+                  <span
+                    className="min-w-0 flex-1 truncate rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-semibold text-neutral-600 ring-1 ring-neutral-200"
+                    title={p.vault?.name}
+                  >
+                    {p.vault ? p.vault.name : "No upload yet"}
+                  </span>
+                  <div className="flex shrink-0 items-center gap-1.5">
                     <IconButton kind="edit" label="Edit project" onClick={() => openEditor(p)} />
                     <IconButton
                       kind="delete"
@@ -185,7 +193,7 @@ export default function ProjectsPage() {
         >
           {state.programs.length === 0 ? (
             <p className="text-sm text-neutral-600">
-              Lege zuerst unter <b>Divisions</b> und <b>Programs</b> die Struktur an.
+              {t("Lege zuerst unter Divisions und Programs die Struktur an.")}
             </p>
           ) : (
             <div className="space-y-3">
@@ -195,7 +203,7 @@ export default function ProjectsPage() {
                   className={inputCls}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="z. B. MACE Interviews Runde 1"
+                  placeholder={t("z. B. MACE Interviews Runde 1")}
                   autoFocus
                 />
               </div>
@@ -231,17 +239,17 @@ export default function ProjectsPage() {
                 </div>
               </div>
               <div>
-                <label className="mb-1 block text-xs font-bold text-neutral-600">Methode</label>
+                <label className="mb-1 block text-xs font-bold text-neutral-600">{t("Methode")}</label>
                 <input
                   className={inputCls}
                   value={method}
                   onChange={(e) => setMethod(e.target.value)}
-                  placeholder="z. B. User Interviews"
+                  placeholder={t("z. B. User Interviews")}
                 />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-bold text-neutral-600">
-                  Beschreibung (optional)
+                  {t("Beschreibung (optional)")}
                 </label>
                 <textarea
                   className={inputCls}
@@ -271,7 +279,7 @@ export default function ProjectsPage() {
       {confirmDelete && (
         <Modal title="Delete project" onClose={() => setConfirmDelete(null)}>
           <p className="text-sm text-neutral-600">
-            „{confirmDelete.name}“ inkl. hochgeladener Auswertung wirklich löschen?
+            „{confirmDelete.name}“ {t("inkl. hochgeladener Auswertung wirklich löschen?")}
           </p>
           <div className="mt-4 flex justify-end gap-2">
             <button type="button" className={btnSecondary} onClick={() => setConfirmDelete(null)}>

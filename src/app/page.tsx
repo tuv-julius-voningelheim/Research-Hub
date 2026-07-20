@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { findingsCount } from "@/lib/analytics";
 import { loadDemoVault } from "@/lib/demo";
+import { useLang } from "@/lib/i18n";
 import { divisionOf, useHub } from "@/lib/store";
 import {
   Card,
@@ -16,6 +17,7 @@ import { FileIcon, FolderIcon, InsightIcon, OrgIcon } from "@/components/icons";
 
 export default function DashboardPage() {
   const { state, ready, addDivision, addProgram, addProject, attachVault } = useHub();
+  const { t } = useLang();
   const [seeding, setSeeding] = useState(false);
   const [error, setError] = useState<string>();
 
@@ -82,9 +84,7 @@ export default function DashboardPage() {
               UX Research Insight Hub
             </h1>
             <p className="mt-2 text-sm leading-relaxed text-blue-100/90">
-              Second-Brain-Exporte hochladen — Themes, Pain Points, Needs, Insights
-              und Empfehlungen werden programmatisch ausgewertet und als gemeinsame,
-              nachvollziehbare Erkenntnisse aufbereitet.
+              {t("Second-Brain-Exporte hochladen — Themes, Pain Points, Needs, Insights und Empfehlungen werden programmatisch ausgewertet und als gemeinsame, nachvollziehbare Erkenntnisse aufbereitet.")}
             </p>
           </div>
           <Link
@@ -115,8 +115,8 @@ export default function DashboardPage() {
         <h2 className="mb-3 text-lg font-bold text-neutral-900">Recent projects</h2>
         {!ready ? null : recent.length === 0 ? (
           <EmptyState
-            title="Noch keine Projekte"
-            hint="Lege unter Divisions → Programs → Projects deine Struktur an und lade dann einen Second-Brain-Export (ZIP) hoch. Oder starte mit den Beispieldaten."
+            title={t("Noch keine Projekte")}
+            hint={t("Lege unter Divisions → Programs → Projects deine Struktur an und lade dann einen Second-Brain-Export (ZIP) hoch. Oder starte mit den Beispieldaten.")}
           />
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -148,7 +148,7 @@ export default function DashboardPage() {
               onClick={seedDemo}
               disabled={seeding}
             >
-              {seeding ? "Lade Beispieldaten…" : "Beispieldaten laden (MACE)"}
+              {seeding ? t("Lade Beispieldaten…") : t("Beispieldaten laden (MACE)")}
             </button>
             {error && <span className="text-sm text-red-600">{error}</span>}
           </div>

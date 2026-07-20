@@ -4,6 +4,7 @@
 // white cards with hairline borders, soft tinted badges, flat buttons.
 
 import { useEffect, type ReactNode } from "react";
+import { useLang } from "@/lib/i18n";
 import type { ProjectStatus } from "@/lib/types";
 
 export const ACCENT = "#0057b8";
@@ -54,10 +55,11 @@ export function LevelBadge({
   level?: string;
   prefix?: string;
 }) {
+  const { t } = useLang();
   if (!level) return null;
   const key = level.toLowerCase();
   const cls = LEVEL_STYLES[key] ?? "bg-neutral-100 text-neutral-600 ring-neutral-200";
-  const label = key.charAt(0).toUpperCase() + key.slice(1);
+  const label = t(key.charAt(0).toUpperCase() + key.slice(1));
   return (
     <span
       className={`inline-block whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${cls}`}
@@ -68,6 +70,7 @@ export function LevelBadge({
 }
 
 export function ConfidenceBadge({ level }: { level?: string }) {
+  const { t } = useLang();
   if (!level) return null;
   const key = level.toLowerCase();
   const cls =
@@ -80,7 +83,7 @@ export function ConfidenceBadge({ level }: { level?: string }) {
     <span
       className={`inline-block whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${cls}`}
     >
-      Confidence {key.charAt(0).toUpperCase() + key.slice(1)}
+      Confidence {t(key.charAt(0).toUpperCase() + key.slice(1))}
     </span>
   );
 }

@@ -6,6 +6,7 @@
 // resolved per note — keep mine vs. take the new version.
 
 import { useState } from "react";
+import { useLang } from "@/lib/i18n";
 import { diffSummary, TYPE_TITLE, type DiffEntry } from "@/lib/editable";
 import type { EditableContent, Vault } from "@/lib/types";
 import { Modal, btnPrimary, btnSecondary } from "@/components/ui";
@@ -29,6 +30,7 @@ function DiffColumn({
   selected: boolean;
   onSelect: () => void;
 }) {
+  const { t } = useLang();
   return (
     <button
       type="button"
@@ -47,7 +49,7 @@ function DiffColumn({
             variant === "mine" ? "text-[#0057b8]" : "text-emerald-700"
           }`}
         >
-          {variant === "mine" ? "Deine Version behalten" : "Neue Version übernehmen"}
+          {variant === "mine" ? t("Deine Version behalten") : t("Neue Version übernehmen")}
         </span>
         <span
           className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
@@ -102,6 +104,7 @@ export default function UploadDiffModal({
   onApply: (resolutions: Record<string, "mine" | "theirs">) => void;
   onClose: () => void;
 }) {
+  const { t } = useLang();
   const conflicts = entries.filter((e) => e.status === "conflict");
   const infos = entries.filter((e) =>
     ["new", "edited-clean", "manual-kept", "removed-upstream"].includes(e.status)
@@ -113,34 +116,32 @@ export default function UploadDiffModal({
   );
 
   return (
-    <Modal title="Änderungen übernehmen" onClose={onClose} wide>
+    <Modal title={t("Änderungen übernehmen")} onClose={onClose} wide>
       <p className="mb-3 text-sm leading-relaxed text-neutral-600">
-        Der neue Export wurde mit dem aktuellen Stand abgeglichen. Manuell
-        angelegte Elemente bleiben immer erhalten, deine Bearbeitungen werden
-        beibehalten — nur bei Konflikten entscheidest du.
+        {t("Der neue Export wurde mit dem aktuellen Stand abgeglichen. Manuell angelegte Elemente bleiben immer erhalten, deine Bearbeitungen werden beibehalten — nur bei Konflikten entscheidest du.")}
       </p>
 
       {/* summary */}
       <div className="mb-4 flex flex-wrap gap-2">
         {summary.conflicts > 0 && (
           <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800 ring-1 ring-amber-200">
-            {summary.conflicts} Konflikte
+            {summary.conflicts} {t("Konflikte")}
           </span>
         )}
         <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200">
-          {summary.added} neu
+          {summary.added} {t("neu")}
         </span>
         <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-800 ring-1 ring-blue-200">
-          {summary.edited} Bearbeitungen behalten
+          {summary.edited} {t("Bearbeitungen behalten")}
         </span>
         {summary.manual > 0 && (
           <span className="rounded-full bg-violet-50 px-2.5 py-1 text-xs font-bold text-violet-800 ring-1 ring-violet-200">
-            {summary.manual} manuell
+            {summary.manual} {t("manuell")}
           </span>
         )}
         {summary.removed > 0 && (
           <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800 ring-1 ring-amber-200">
-            {summary.removed} upstream entfernt
+            {summary.removed} {t("upstream entfernt")}
           </span>
         )}
       </div>
@@ -149,7 +150,7 @@ export default function UploadDiffModal({
         {conflicts.length > 0 && (
           <div className="space-y-3">
             <h3 className="text-sm font-bold text-neutral-900">
-              Konflikte ({conflicts.length})
+              {t("Konflikte")} ({conflicts.length})
             </h3>
             {conflicts.map((c) => (
               <div key={c.slug} className="rounded-xl bg-neutral-50 p-3 ring-1 ring-neutral-200">
@@ -177,14 +178,14 @@ export default function UploadDiffModal({
 
         {infos.length > 0 && (
           <div>
-            <h3 className="mb-2 text-sm font-bold text-neutral-900">Übersicht</h3>
+            <h3 className="mb-2 text-sm font-bold text-neutral-900">{t("Übersicht")}</h3>
             <div className="divide-y divide-neutral-100 rounded-xl ring-1 ring-neutral-200">
               {infos.map((e) => {
                 const meta = INFO_META[e.status];
                 return (
                   <div key={e.slug} className="flex items-center gap-3 px-3 py-2">
                     <span className={`w-56 shrink-0 text-xs font-semibold ${meta.cls}`}>
-                      {meta.label}
+                      {t(meta.label)}
                     </span>
                     <span className="truncate text-sm text-neutral-700">
                       {TYPE_TITLE[e.type]}: {e.title}
@@ -199,10 +200,10 @@ export default function UploadDiffModal({
 
       <div className="mt-5 flex justify-end gap-2 border-t border-neutral-100 pt-4">
         <button type="button" className={btnSecondary} onClick={onClose}>
-          Abbrechen
+          {t("Abbrechen")}
         </button>
         <button type="button" className={btnPrimary} onClick={() => onApply(res)}>
-          Upload übernehmen
+          {t("Upload übernehmen")}
         </button>
       </div>
     </Modal>

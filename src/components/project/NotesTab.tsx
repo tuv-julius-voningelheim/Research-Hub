@@ -3,12 +3,14 @@
 // Team notes + next-steps checklist, stored on the project (synced workspace).
 
 import { useEffect, useRef, useState } from "react";
+import { useLang } from "@/lib/i18n";
 import { useHub } from "@/lib/store";
 import type { Project } from "@/lib/types";
 import { Card, SectionTitle, btnPrimary, inputCls } from "@/components/ui";
 
 export default function NotesTab({ project }: { project: Project }) {
   const { addNextStep, toggleNextStep, removeNextStep, setNotes } = useHub();
+  const { t } = useLang();
   const [draft, setDraft] = useState("");
   const [notesDraft, setNotesDraft] = useState(project.notes ?? "");
   const [saved, setSaved] = useState(true);
@@ -37,7 +39,7 @@ export default function NotesTab({ project }: { project: Project }) {
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
       {/* next steps */}
       <div>
-        <SectionTitle sub="Aufgaben, die aus der Auswertung folgen — für das ganze Team sichtbar.">
+        <SectionTitle sub={t("Aufgaben, die aus der Auswertung folgen — für das ganze Team sichtbar.")}>
           Next Steps
         </SectionTitle>
         <Card className="p-4">
@@ -52,7 +54,7 @@ export default function NotesTab({ project }: { project: Project }) {
           >
             <input
               className={inputCls}
-              placeholder="Neuen Next Step hinzufügen…"
+              placeholder={t("Neuen Next Step hinzufügen…")}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
             />
@@ -63,7 +65,7 @@ export default function NotesTab({ project }: { project: Project }) {
 
           {steps.length === 0 && (
             <p className="py-6 text-center text-sm text-neutral-400">
-              Noch keine Next Steps.
+              {t("Noch keine Next Steps.")}
             </p>
           )}
 
@@ -76,7 +78,7 @@ export default function NotesTab({ project }: { project: Project }) {
                 <button
                   type="button"
                   onClick={() => toggleNextStep(project.id, s.id)}
-                  aria-label={s.done ? "Als offen markieren" : "Als erledigt markieren"}
+                  aria-label={s.done ? t("Als offen markieren") : t("Als erledigt markieren")}
                   className={`flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-md border transition-colors ${
                     s.done
                       ? "border-emerald-500 bg-emerald-500 text-white"
@@ -99,7 +101,7 @@ export default function NotesTab({ project }: { project: Project }) {
                 <button
                   type="button"
                   onClick={() => removeNextStep(project.id, s.id)}
-                  aria-label="Löschen"
+                  aria-label={t("Löschen")}
                   className="cursor-pointer rounded p-1 text-neutral-300 opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100"
                 >
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -115,15 +117,15 @@ export default function NotesTab({ project }: { project: Project }) {
       {/* notes */}
       <div>
         <div className="mb-3 flex items-baseline justify-between">
-          <SectionTitle sub="Freitext — speichert automatisch.">Notizen</SectionTitle>
+          <SectionTitle sub={t("Freitext — speichert automatisch.")}>{t("Notizen")}</SectionTitle>
           <span className={`text-xs ${saved ? "text-neutral-400" : "text-amber-600"}`}>
-            {saved ? "Gespeichert" : "Speichert…"}
+            {saved ? t("Gespeichert") : t("Speichert…")}
           </span>
         </div>
         <Card className="p-2">
           <textarea
             className="min-h-[320px] w-full resize-y rounded-lg border-0 bg-transparent px-3 py-2 text-sm leading-relaxed text-neutral-800 outline-none placeholder:text-neutral-400"
-            placeholder="Beobachtungen, Entscheidungen, Kontext für das Team…"
+            placeholder={t("Beobachtungen, Entscheidungen, Kontext für das Team…")}
             value={notesDraft}
             onChange={(e) => onNotesChange(e.target.value)}
           />

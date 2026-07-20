@@ -12,6 +12,7 @@ import {
   effectiveVault,
   extractEditable,
 } from "@/lib/editable";
+import { useLang } from "@/lib/i18n";
 import { quoteKey, type EditableContent, type Note, type NoteType, type Vault } from "@/lib/types";
 import ContextTab from "@/components/project/ContextTab";
 import InsightsRecsTab from "@/components/project/InsightsRecsTab";
@@ -68,6 +69,7 @@ function MasterDataTile({
 }
 
 function FilesTab({ vault, onOpen }: { vault: Vault; onOpen: (n: Note) => void }) {
+  const { t } = useLang();
   const groups = useMemo(() => {
     const map = new Map<string, Note[]>();
     for (const n of vault.notes) {
@@ -83,9 +85,9 @@ function FilesTab({ vault, onOpen }: { vault: Vault; onOpen: (n: Note) => void }
       {groups.map(([folder, notes]) => (
         <Card key={folder}>
           <div className="border-b border-neutral-100 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-neutral-500">
-            {folder === "/" ? "Vault-Root" : folder}
+            {folder === "/" ? t("Vault-Root") : folder}
             <span className="ml-2 font-semibold normal-case text-neutral-400">
-              {notes.length} {notes.length === 1 ? "Datei" : "Dateien"}
+              {notes.length} {notes.length === 1 ? t("Datei") : t("Dateien")}
             </span>
           </div>
           <div className="divide-y divide-neutral-50">
@@ -138,6 +140,7 @@ function ProjectDetail() {
     restoreNote,
     applyUpload,
   } = useHub();
+  const { t, dateLocale } = useLang();
   const [shareOpen, setShareOpen] = useState(false);
   const [editor, setEditor] = useState<EditorState>(null);
   const [pendingUpload, setPendingUpload] = useState<Vault | null>(null);
@@ -176,11 +179,11 @@ function ProjectDetail() {
   if (!project) {
     return (
       <EmptyState
-        title="Projekt nicht gefunden"
-        hint="Es wurde möglicherweise gelöscht."
+        title={t("Projekt nicht gefunden")}
+        hint={t("Es wurde möglicherweise gelöscht.")}
         action={
           <Link href="/projects" className="text-sm font-bold text-[#004a99] hover:underline">
-            ← Zurück zu Projects
+            {t("← Zurück zu Projects")}
           </Link>
         }
       />
@@ -250,7 +253,7 @@ function ProjectDetail() {
                     <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
                     <path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4" />
                   </svg>
-                  Teilen
+                  {t("Teilen")}
                 </span>
               </button>
             )}
@@ -296,7 +299,7 @@ function ProjectDetail() {
             label="Method"
           />
           <MasterDataTile icon={UsersIcon} value={interviews.length} label="Participants" />
-          <MasterDataTile icon={FileIcon} value={vault?.notes.length ?? 0} label="Elemente" />
+          <MasterDataTile icon={FileIcon} value={vault?.notes.length ?? 0} label={t("Elemente")} />
           <MasterDataTile
             icon={
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -304,7 +307,7 @@ function ProjectDetail() {
                 <path d="M16 2v4M8 2v4M3 10h18" />
               </svg>
             }
-            value={project.vault ? new Date(project.vault.uploadedAt).toLocaleDateString("de-DE") : "—"}
+            value={project.vault ? new Date(project.vault.uploadedAt).toLocaleDateString(dateLocale) : "—"}
             label="Last upload"
           />
         </div>
@@ -332,30 +335,30 @@ function ProjectDetail() {
           {/* tabs */}
           <div className="overflow-x-auto">
             <div className="flex min-w-max gap-0.5 border-b border-neutral-200">
-              {TABS.map((t) => {
+              {TABS.map((tb) => {
                 const count =
-                  t.key === "notes"
+                  tb.key === "notes"
                     ? (project.nextSteps?.filter((s) => !s.done).length ?? 0)
-                    : t.key === "requirements"
+                    : tb.key === "requirements"
                       ? (project.requirements?.filter((s) => !s.done).length ?? 0)
-                      : t.key === "context"
+                      : tb.key === "context"
                         ? (project.goals?.length ?? 0) + (project.reportBlocks?.length ?? 0)
-                        : t.types.length > 0
-                          ? t.types.reduce((s, ty) => s + types[ty].length, 0)
+                        : tb.types.length > 0
+                          ? tb.types.reduce((s, ty) => s + types[ty].length, 0)
                           : undefined;
-                const active = tab === t.key;
+                const active = tab === tb.key;
                 return (
                   <button
-                    key={t.key}
+                    key={tb.key}
                     type="button"
-                    onClick={() => setQuery({ tab: t.key, note: null })}
+                    onClick={() => setQuery({ tab: tb.key, note: null })}
                     className={`-mb-px cursor-pointer whitespace-nowrap border-b-2 px-3.5 py-2.5 text-sm font-semibold transition-colors ${
                       active
                         ? "border-[#0057b8] text-[#0057b8]"
                         : "border-transparent text-neutral-500 hover:text-neutral-800"
                     }`}
                   >
-                    {t.label}
+                    {t(tb.label)}
                     {count !== undefined && count > 0 && (
                       <span className="ml-1.5 text-xs font-medium text-neutral-400">{count}</span>
                     )}
@@ -415,31 +418,31 @@ function ProjectDetail() {
             </div>
           )}
           {TABS.filter(
-            (t) => t.types.length > 0 && t.key !== "insights-recs" && t.key !== "interviews"
-          ).map((t) => {
-            if (tab !== t.key) return null;
-            const notes = t.types.flatMap((ty) => types[ty]);
-            const editable = t.types.every((ty) => EDITABLE_TYPES.includes(ty));
+            (tb) => tb.types.length > 0 && tb.key !== "insights-recs" && tb.key !== "interviews"
+          ).map((tb) => {
+            if (tab !== tb.key) return null;
+            const notes = tb.types.flatMap((ty) => types[ty]);
+            const editable = tb.types.every((ty) => EDITABLE_TYPES.includes(ty));
             const hidden = (project.hiddenNotes ?? [])
               .map((s) => project.vault?.notes.find((n) => n.slug === s))
-              .filter((n): n is Note => !!n && t.types.includes(n.type));
+              .filter((n): n is Note => !!n && tb.types.includes(n.type));
             return (
-              <div key={t.key} className="space-y-4">
+              <div key={tb.key} className="space-y-4">
                 {editable && (
                   <div className="flex justify-end">
                     <button
                       type="button"
                       className={btnPrimary}
-                      onClick={() => setEditor({ mode: "new", type: t.types[0] })}
+                      onClick={() => setEditor({ mode: "new", type: tb.types[0] })}
                     >
-                      + {TYPE_TITLE[t.types[0]]}
+                      + {TYPE_TITLE[tb.types[0]]}
                     </button>
                   </div>
                 )}
                 {notes.length === 0 ? (
                   <EmptyState
-                    title={`Keine ${t.label}`}
-                    hint={editable ? "Lege manuell ein Element an oder lade einen Export hoch." : ""}
+                    title={`${t("Keine")} ${tb.label}`}
+                    hint={editable ? t("Lege manuell ein Element an oder lade einen Export hoch.") : ""}
                   />
                 ) : (
                   <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -448,7 +451,7 @@ function ProjectDetail() {
                         key={n.path}
                         note={n}
                         onOpen={openNoteFn}
-                        showType={t.types.length > 1}
+                        showType={tb.types.length > 1}
                         starred={project.starredQuotes?.[n.slug]}
                         onEdit={editable ? editNote : undefined}
                         onDelete={editable ? deleteNote : undefined}
@@ -459,7 +462,7 @@ function ProjectDetail() {
                 {hidden.length > 0 && (
                   <details className="rounded-xl bg-neutral-50 px-4 py-3 ring-1 ring-neutral-200">
                     <summary className="cursor-pointer text-xs font-semibold text-neutral-500">
-                      {hidden.length} ausgeblendet
+                      {hidden.length} {t("ausgeblendet")}
                     </summary>
                     <ul className="mt-2 space-y-1">
                       {hidden.map((n) => (
@@ -470,7 +473,7 @@ function ProjectDetail() {
                             onClick={() => restoreNote(project.id, n.slug)}
                             className="shrink-0 cursor-pointer text-xs font-semibold text-[#0057b8] hover:underline"
                           >
-                            Einblenden
+                            {t("Einblenden")}
                           </button>
                         </li>
                       ))}
@@ -483,7 +486,7 @@ function ProjectDetail() {
           {tab === "interviews" && (
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               {types.interview.length === 0 ? (
-                <EmptyState title="Keine Interviews" />
+                <EmptyState title={`${t("Keine")} Interviews`} />
               ) : (
                 types.interview.map((n) => (
                   <NoteCard key={n.path} note={n} onOpen={openNoteFn} />

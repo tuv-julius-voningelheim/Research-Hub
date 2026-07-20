@@ -3,9 +3,11 @@
 import { Suspense, useState } from "react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
+import { useLang } from "@/lib/i18n";
 
 function LoginForm() {
   const searchParams = useSearchParams();
+  const { t } = useLang();
   const [password, setPassword] = useState("");
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -49,24 +51,24 @@ function LoginForm() {
         </div>
       </div>
 
-      <label className="mb-1 block text-xs font-bold text-neutral-600">Passwort</label>
+      <label className="mb-1 block text-xs font-bold text-neutral-600">{t("Passwort")}</label>
       <input
         type="password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         autoFocus
         className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-900 outline-none focus:border-[#0a5cd5] focus:ring-2 focus:ring-blue-100"
-        placeholder="Team-Passwort"
+        placeholder={t("Team-Passwort")}
       />
       {error && (
-        <p className="mt-2 text-sm font-semibold text-red-600">Falsches Passwort.</p>
+        <p className="mt-2 text-sm font-semibold text-red-600">{t("Falsches Passwort.")}</p>
       )}
       <button
         type="submit"
         disabled={busy || !password}
         className="mt-4 w-full cursor-pointer rounded-lg bg-[#004a99] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#003b7a] disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {busy ? "Prüfe…" : "Anmelden"}
+        {busy ? t("Prüfe…") : t("Anmelden")}
       </button>
     </form>
   );

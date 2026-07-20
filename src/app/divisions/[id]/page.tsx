@@ -15,6 +15,7 @@ import {
 } from "@/lib/analytics";
 import { BarRow, SEVERITY_COLOR } from "@/components/Bars";
 import ShareModal from "@/components/ShareModal";
+import { useLang } from "@/lib/i18n";
 import { useHub } from "@/lib/store";
 import {
   Card,
@@ -29,6 +30,7 @@ import { FileIcon, FolderIcon, OrgIcon, ProgramIcon, UsersIcon } from "@/compone
 export default function DivisionDetailPage() {
   const params = useParams<{ id: string }>();
   const { state, ready, mode } = useHub();
+  const { t } = useLang();
   const [shareOpen, setShareOpen] = useState(false);
 
   const division = state.divisions.find((d) => d.id === params.id);
@@ -58,10 +60,10 @@ export default function DivisionDetailPage() {
   if (!division) {
     return (
       <EmptyState
-        title="Division nicht gefunden"
+        title={t("Division nicht gefunden")}
         action={
           <Link href="/divisions" className="text-sm font-bold text-[#0057b8] hover:underline">
-            ← Zurück zu Divisions
+            {t("← Zurück zu Divisions")}
           </Link>
         }
       />
@@ -104,7 +106,7 @@ export default function DivisionDetailPage() {
                   <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
                   <path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4" />
                 </svg>
-                Teilen
+                {t("Teilen")}
               </span>
             </button>
           )}
@@ -122,7 +124,7 @@ export default function DivisionDetailPage() {
       <section>
         <SectionTitle>Programs</SectionTitle>
         {programs.length === 0 ? (
-          <EmptyState title="Noch keine Programs in dieser Division" />
+          <EmptyState title={t("Noch keine Programs in dieser Division")} />
         ) : (
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
             {programs.map((p) => {
@@ -155,7 +157,7 @@ export default function DivisionDetailPage() {
           {sevDist.length > 0 && (
             <Card className="p-5">
               <h3 className="mb-4 text-sm font-bold text-neutral-900">
-                Pain Points nach Severity (Division)
+                {t("Pain Points nach Severity (Division)")}
               </h3>
               <div className="space-y-2.5">
                 {sevDist.map((d) => (
@@ -172,17 +174,17 @@ export default function DivisionDetailPage() {
           )}
           {topThemes.length > 0 && (
             <Card className="p-5">
-              <h3 className="mb-4 text-sm font-bold text-neutral-900">Top-Themes</h3>
+              <h3 className="mb-4 text-sm font-bold text-neutral-900">{t("Top-Themes")}</h3>
               <div className="space-y-2">
-                {topThemes.map((t) => (
-                  <div key={t.title} className="flex items-center gap-2">
+                {topThemes.map((th) => (
+                  <div key={th.title} className="flex items-center gap-2">
                     <span className="min-w-0 flex-1 truncate text-sm font-semibold text-neutral-800">
-                      {t.title}
+                      {th.title}
                     </span>
                     <span className="shrink-0 text-xs text-neutral-400">
-                      {t.totalQuotes} Zitate
+                      {th.totalQuotes} {t("Zitate")}
                     </span>
-                    <ConfidenceBadge level={t.maxConfidence} />
+                    <ConfidenceBadge level={th.maxConfidence} />
                   </div>
                 ))}
               </div>

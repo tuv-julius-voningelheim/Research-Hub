@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useLang } from "@/lib/i18n";
 import { parseVaultZip } from "@/lib/parser";
 import type { Vault } from "@/lib/types";
 import { UploadIcon } from "@/components/icons";
@@ -13,13 +14,14 @@ export default function UploadZone({
   onParsed: (vault: Vault) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const { t } = useLang();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [dragOver, setDragOver] = useState(false);
 
   async function handleFile(file: File) {
     if (!/\.zip$/i.test(file.name)) {
-      setError("Bitte eine ZIP-Datei hochladen (Second-Brain-Export).");
+      setError(t("Bitte eine ZIP-Datei hochladen (Second-Brain-Export)."));
       return;
     }
     setBusy(true);
@@ -69,13 +71,11 @@ export default function UploadZone({
         </div>
         <div className={compact ? "" : "text-center"}>
           <div className="text-sm font-bold text-neutral-800">
-            {busy ? "Wird ausgewertet…" : "Second-Brain-Export (ZIP) hochladen"}
+            {busy ? t("Wird ausgewertet…") : t("Second-Brain-Export (ZIP) hochladen")}
           </div>
           {!compact && (
             <div className="mt-1 text-xs text-neutral-500">
-              Drag &amp; drop oder klicken. Der Obsidian-Vault wird direkt im Browser
-              geparst — Interviews, Themes, Pain Points, Needs, Insights,
-              Recommendations, Personas.
+              {t("Drag & drop oder klicken. Der Obsidian-Vault wird direkt im Browser geparst — Interviews, Themes, Pain Points, Needs, Insights, Recommendations, Personas.")}
             </div>
           )}
         </div>

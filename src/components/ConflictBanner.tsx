@@ -4,6 +4,7 @@
 // "server empty but local data present" recovery offer.
 
 import { useState } from "react";
+import { useLang } from "@/lib/i18n";
 import { useHub } from "@/lib/store";
 
 function Banner({
@@ -42,6 +43,7 @@ export default function ConflictBanner() {
     serverEmptyLocalData,
     restoreToServer,
   } = useHub();
+  const { t } = useLang();
   const [busy, setBusy] = useState(false);
 
   if (serverEmptyLocalData) {
@@ -54,7 +56,7 @@ export default function ConflictBanner() {
             <path d="M21 3v5h-5M3 21v-5h5" />
           </svg>
         }
-        text="Der Server-Workspace ist leer, aber dieser Browser hat einen gespeicherten Stand."
+        text={t("Der Server-Workspace ist leer, aber dieser Browser hat einen gespeicherten Stand.")}
         action={
           <button
             type="button"
@@ -66,7 +68,7 @@ export default function ConflictBanner() {
             }}
             className="shrink-0 cursor-pointer rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
           >
-            {busy ? "Stelle wieder her…" : "Auf Server wiederherstellen"}
+            {busy ? t("Stelle wieder her…") : t("Auf Server wiederherstellen")}
           </button>
         }
       />
@@ -82,7 +84,7 @@ export default function ConflictBanner() {
             <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01" />
           </svg>
         }
-        text="Der Speicherdienst ist vorübergehend nicht erreichbar (Nutzungslimit). Deine Daten sind sicher — du arbeitest lokal, bis er wieder verfügbar ist."
+        text={t("Der Speicherdienst ist vorübergehend nicht erreichbar (Nutzungslimit). Deine Daten sind sicher — du arbeitest lokal, bis er wieder verfügbar ist.")}
       />
     );
   }
@@ -96,7 +98,7 @@ export default function ConflictBanner() {
             <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01" />
           </svg>
         }
-        text="Der Workspace wurde von jemand anderem geändert."
+        text={t("Der Workspace wurde von jemand anderem geändert.")}
         action={
           <button
             type="button"
@@ -108,7 +110,7 @@ export default function ConflictBanner() {
             }}
             className="shrink-0 cursor-pointer rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
           >
-            {busy ? "Lade…" : "Neu laden"}
+            {busy ? t("Lade…") : t("Neu laden")}
           </button>
         }
       />

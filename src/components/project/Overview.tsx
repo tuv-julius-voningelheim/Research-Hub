@@ -19,6 +19,7 @@ import {
   themeSummaries,
   totalQuotes,
 } from "@/lib/analytics";
+import { useLang } from "@/lib/i18n";
 import type { Note, ProjectLink, ReportBlock, Vault } from "@/lib/types";
 import { Card, ConfidenceBadge, LevelBadge, Modal, StatTile } from "@/components/ui";
 import { FlagIcon, QuoteIcon, UsersIcon } from "@/components/icons";
@@ -48,6 +49,7 @@ function ReportBlockView({ block }: { block: ReportBlock }) {
 }
 
 function ContextCard({ context }: { context: OverviewContext }) {
+  const { t } = useLang();
   const { goals = [], hypotheses = [], links = [] } = context;
   if (goals.length === 0 && hypotheses.length === 0 && links.length === 0) return null;
   return (
@@ -77,7 +79,7 @@ function ContextCard({ context }: { context: OverviewContext }) {
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0057b8" strokeWidth="2">
                 <path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z" />
               </svg>
-              Hypothesen
+              {t("Hypothesen")}
             </h3>
             <ul className="space-y-1.5">
               {hypotheses.map((h, i) => (
@@ -148,11 +150,12 @@ function BarRow({
 }
 
 function EvidenceDots({ n, max = 5 }: { n: number; max?: number }) {
+  const { tf } = useLang();
   // stays compact even for high evidence counts (feedback: 6+ broke the layout)
   return (
     <span
       className="flex shrink-0 items-center gap-1"
-      title={`Evidenz aus ${n} Interview(s)`}
+      title={tf("Evidenz aus {n} Interview(s)", { n })}
     >
       {Array.from({ length: Math.min(n, max) || 1 }).map((_, i) => (
         <span
@@ -184,6 +187,7 @@ export default function Overview({
   context?: OverviewContext;
   reportBlocks?: ReportBlock[];
 }) {
+  const { t } = useLang();
   const topBlocks = (reportBlocks ?? []).filter((b) => b.placement === "top");
   const laterBlocks = (reportBlocks ?? []).filter((b) => b.placement !== "top");
   const types = useMemo(() => byType(vault), [vault]);
@@ -226,7 +230,7 @@ export default function Overview({
         <StatTile value={types.need.length} label="Needs" />
         <StatTile value={types.insight.length} label="Insights" tone="green" />
         <StatTile value={types.recommendation.length} label="Recommendations" tone="green" />
-        <StatTile value={quotes} label="Belegte Zitate" icon={QuoteIcon} tone="neutral" />
+        <StatTile value={quotes} label={t("Belegte Zitate")} icon={QuoteIcon} tone="neutral" />
       </div>
 
       {/* priority shortlist */}
@@ -236,7 +240,7 @@ export default function Overview({
             <span className="text-[#004a99]">{FlagIcon}</span>
             <h3 className="text-base font-bold text-neutral-900">Priority shortlist</h3>
             <span className="text-xs text-neutral-500">
-              rangiert nach Severity × Confidence × Evidenz
+              {t("rangiert nach Severity × Confidence × Evidenz")}
             </span>
           </div>
           <div className="space-y-2">
@@ -267,7 +271,7 @@ export default function Overview({
         {severityDist.length > 0 && (
           <Card className="p-5">
             <h3 className="mb-4 text-sm font-bold text-neutral-900">
-              Pain Points nach Severity
+              {t("Pain Points nach Severity")}
             </h3>
             <div className="space-y-2.5">
               {severityDist.map((d) => (
@@ -285,7 +289,7 @@ export default function Overview({
         {themeConf.length > 0 && (
           <Card className="p-5">
             <h3 className="mb-4 text-sm font-bold text-neutral-900">
-              Themes nach Confidence
+              {t("Themes nach Confidence")}
             </h3>
             <div className="space-y-2.5">
               {themeConf.map((d, i) => (
@@ -303,7 +307,7 @@ export default function Overview({
         {needCats.length > 0 && (
           <Card className="p-5">
             <h3 className="mb-4 text-sm font-bold text-neutral-900">
-              Needs nach Kategorie
+              {t("Needs nach Kategorie")}
             </h3>
             <div className="space-y-2.5">
               {needCats.map((d) => (
@@ -318,10 +322,10 @@ export default function Overview({
       {matrix.size > 0 && (
         <Card className="p-5">
           <h3 className="mb-1 text-sm font-bold text-neutral-900">
-            Risiko-Matrix: Severity × Confidence
+            {t("Risiko-Matrix: Severity × Confidence")}
           </h3>
           <p className="mb-4 text-xs text-neutral-500">
-            Pain Points — oben links = dringend UND gut belegt.
+            {t("Pain Points — oben links = dringend UND gut belegt.")}
           </p>
           <div className="overflow-x-auto">
             <div
@@ -334,13 +338,13 @@ export default function Overview({
                   key={c}
                   className="pb-1 text-center text-xs font-bold capitalize text-neutral-500"
                 >
-                  Confidence {c}
+                  Confidence {t(c.charAt(0).toUpperCase() + c.slice(1))}
                 </div>
               ))}
               {MATRIX_SEVERITIES.map((sev) => (
                 <Fragment key={sev}>
                   <div className="flex items-center text-xs font-bold capitalize text-neutral-500">
-                    {sev}
+                    {t(sev.charAt(0).toUpperCase() + sev.slice(1))}
                   </div>
                   {MATRIX_CONFIDENCES.map((conf) => {
                     const notes = matrix.get(`${sev}:${conf}`) ?? [];
@@ -387,30 +391,30 @@ export default function Overview({
       {themes.length > 0 && (
         <section>
           <h3 className="mb-3 text-base font-bold text-neutral-900">
-            Themes &amp; abgeleitete Evidenz
+            {t("Themes & abgeleitete Evidenz")}
           </h3>
           <div className="space-y-2">
-            {themes.map((t) => (
+            {themes.map((th) => (
               <button
-                key={t.note.slug}
+                key={th.note.slug}
                 type="button"
-                onClick={() => onOpen(t.note)}
+                onClick={() => onOpen(th.note)}
                 className="flex w-full cursor-pointer flex-wrap items-center gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-3 text-left transition-shadow hover:shadow-md"
               >
                 <span className="min-w-0 flex-1 text-sm font-semibold text-neutral-800">
-                  {t.note.title}
+                  {th.note.title}
                 </span>
                 <span className="flex items-center gap-1.5 text-xs text-neutral-500">
                   <span className="text-neutral-400">{UsersIcon}</span>
-                  {t.interviewCount} Interviews · {t.quoteCount} Zitate
+                  {th.interviewCount} Interviews · {th.quoteCount} {t("Zitate")}
                 </span>
                 <span className="rounded-full bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-700 ring-1 ring-rose-200">
-                  {t.painPoints.length} Pain Points
+                  {th.painPoints.length} Pain Points
                 </span>
                 <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700 ring-1 ring-amber-200">
-                  {t.needs.length} Needs
+                  {th.needs.length} Needs
                 </span>
-                <ConfidenceBadge level={t.confidence} />
+                <ConfidenceBadge level={th.confidence} />
               </button>
             ))}
           </div>
@@ -421,11 +425,10 @@ export default function Overview({
       {recs.length > 0 && (
         <section>
           <h3 className="mb-1 text-base font-bold text-neutral-900">
-            Recommendations &amp; Nachvollziehbarkeit
+            {t("Recommendations & Nachvollziehbarkeit")}
           </h3>
           <p className="mb-3 text-xs text-neutral-500">
-            Jede Empfehlung ist an genau ein Anker-Insight gebunden — Evidenz bleibt bis
-            zum Originalzitat rückverfolgbar.
+            {t("Jede Empfehlung ist an genau ein Anker-Insight gebunden — Evidenz bleibt bis zum Originalzitat rückverfolgbar.")}
           </p>
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             {recs.map((r) => (
@@ -447,7 +450,7 @@ export default function Overview({
                     className="mt-2 flex w-full cursor-pointer items-center gap-2 rounded-lg bg-emerald-50/70 px-3 py-2 text-left text-xs font-semibold text-emerald-800 ring-1 ring-emerald-100 hover:bg-emerald-100/70"
                   >
                     <span className="shrink-0 rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold uppercase text-white">
-                      Anker
+                      {t("Anker")}
                     </span>
                     {r.anchorInsight.title}
                   </button>
@@ -462,7 +465,7 @@ export default function Overview({
                         title={s.title}
                         className="cursor-pointer rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11px] font-semibold text-neutral-600 hover:bg-neutral-200"
                       >
-                        {TYPE_LABEL[s.type] ?? s.type}: {s.slug.length > 34 ? s.slug.slice(0, 34) + "…" : s.slug}
+                        {t(TYPE_LABEL[s.type] ?? s.type)}: {s.slug.length > 34 ? s.slug.slice(0, 34) + "…" : s.slug}
                       </button>
                     ))}
                   </div>
@@ -478,7 +481,7 @@ export default function Overview({
         <section>
           <div className="mb-3 flex items-baseline justify-between gap-3">
             <h3 className="text-base font-bold text-neutral-900">
-              Offene Fragen &amp; Research Gaps
+              {t("Offene Fragen & Research Gaps")}
               <span className="ml-2 align-middle text-xs font-semibold text-neutral-400">
                 {visibleQuestions.length}
               </span>
@@ -489,7 +492,7 @@ export default function Overview({
                 onClick={() => setShowHidden((v) => !v)}
                 className="cursor-pointer text-xs font-semibold text-neutral-400 hover:text-neutral-600"
               >
-                {showHidden ? "Ausgeblendete verbergen" : `${hiddenCount} ausgeblendet — anzeigen`}
+                {showHidden ? t("Ausgeblendete verbergen") : `${hiddenCount} ${t("ausgeblendet — anzeigen")}`}
               </button>
             )}
           </div>
@@ -511,7 +514,7 @@ export default function Overview({
                   {curation?.onToggleQuestion && (
                     <button
                       type="button"
-                      title={isHidden ? "Frage wieder einblenden" : "Frage ausblenden"}
+                      title={isHidden ? t("Frage wieder einblenden") : t("Frage ausblenden")}
                       onClick={() => curation.onToggleQuestion?.(q.question)}
                       className={`shrink-0 cursor-pointer rounded-md p-1 transition-all ${
                         isHidden

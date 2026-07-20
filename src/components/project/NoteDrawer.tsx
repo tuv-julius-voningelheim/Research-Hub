@@ -5,6 +5,7 @@
 
 import { useEffect, useMemo } from "react";
 import Markdown from "@/components/Markdown";
+import { useLang } from "@/lib/i18n";
 import { backlinks, slugIndex } from "@/lib/analytics";
 import {
   categoryOf,
@@ -49,11 +50,12 @@ export const TYPE_TONE: Record<string, string> = {
 };
 
 export function TypePill({ type }: { type: string }) {
+  const { t } = useLang();
   return (
     <span
       className={`inline-block whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-bold ${TYPE_TONE[type] ?? TYPE_TONE.other}`}
     >
-      {TYPE_LABEL[type] ?? type}
+      {t(TYPE_LABEL[type] ?? type)}
     </span>
   );
 }
@@ -83,6 +85,7 @@ export default function NoteDrawer({
   onEdit?: (n: Note) => void;
   onDelete?: (n: Note) => void;
 }) {
+  const { t } = useLang();
   const idx = useMemo(() => slugIndex(vault), [vault]);
   const incoming = useMemo(() => backlinks(vault, note.slug), [vault, note.slug]);
 
@@ -107,12 +110,12 @@ export default function NoteDrawer({
               <TypePill type={note.type} />
               {note.manual && (
                 <span className="rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-bold text-violet-700">
-                  Manuell
+                  {t("Manuell")}
                 </span>
               )}
               {note.edited && (
                 <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-bold text-[#0057b8]">
-                  Bearbeitet
+                  {t("Bearbeitet")}
                 </span>
               )}
               <LevelBadge level={severityOf(note)} prefix="Severity" />
@@ -124,20 +127,20 @@ export default function NoteDrawer({
                 <button
                   type="button"
                   onClick={() => onEdit(note)}
-                  title="Bearbeiten"
+                  title={t("Bearbeiten")}
                   className="cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-semibold text-neutral-600 hover:bg-neutral-100 hover:text-[#0057b8]"
                 >
-                  Bearbeiten
+                  {t("Bearbeiten")}
                 </button>
               )}
               {onDelete && (
                 <button
                   type="button"
                   onClick={() => onDelete(note)}
-                  title={note.manual ? "Löschen" : "Ausblenden"}
+                  title={note.manual ? t("Löschen") : t("Ausblenden")}
                   className="cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-semibold text-neutral-500 hover:bg-red-50 hover:text-red-600"
                 >
-                  {note.manual ? "Löschen" : "Ausblenden"}
+                  {note.manual ? t("Löschen") : t("Ausblenden")}
                 </button>
               )}
               <button
@@ -158,10 +161,10 @@ export default function NoteDrawer({
           <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-neutral-500">
             {/* interview filenames contain participant names — folder only */}
             <span>{note.type === "interview" ? note.folder : note.path}</span>
-            {fm["segment"] && <span>Segment: {fm["segment"]}</span>}
-            {categoryOf(note) && <span>Kategorie: {categoryOf(note)}</span>}
-            {fm["status"] && <span>Status: {fm["status"]}</span>}
-            {note.quotes.length > 0 && <span>{note.quotes.length} Zitate</span>}
+            {fm["segment"] && <span>{t("Segment:")} {fm["segment"]}</span>}
+            {categoryOf(note) && <span>{t("Kategorie:")} {categoryOf(note)}</span>}
+            {fm["status"] && <span>{t("Status:")} {fm["status"]}</span>}
+            {note.quotes.length > 0 && <span>{note.quotes.length} {t("Zitate")}</span>}
           </div>
         </div>
 
@@ -190,7 +193,8 @@ export default function NoteDrawer({
           {incoming.length > 0 && (
             <div className="mb-2 mt-8 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
               <div className="mb-2 text-xs font-bold uppercase tracking-wide text-neutral-500">
-                Verlinkt von {incoming.length} {incoming.length === 1 ? "Notiz" : "Notizen"}
+                {t("Verlinkt von")} {incoming.length}{" "}
+                {incoming.length === 1 ? t("Notiz") : t("Notizen")}
               </div>
               <div className="flex flex-wrap gap-2">
                 {incoming.map((n) => (
@@ -200,7 +204,7 @@ export default function NoteDrawer({
                     onClick={() => onNavigate(n.slug)}
                     className="cursor-pointer rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#004a99] ring-1 ring-blue-200 hover:bg-blue-50"
                   >
-                    {TYPE_LABEL[n.type] ?? n.type}: {n.title.length > 48 ? n.title.slice(0, 48) + "…" : n.title}
+                    {t(TYPE_LABEL[n.type] ?? n.type)}: {n.title.length > 48 ? n.title.slice(0, 48) + "…" : n.title}
                   </button>
                 ))}
               </div>

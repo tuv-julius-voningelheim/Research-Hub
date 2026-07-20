@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { useLang } from "@/lib/i18n";
 import { useHub } from "@/lib/store";
 import type { Program } from "@/lib/types";
 import {
@@ -18,6 +19,7 @@ import { ProgramIcon } from "@/components/icons";
 
 export default function ProgramsPage() {
   const { state, ready, addProgram, updateProgram, removeProgram } = useHub();
+  const { t } = useLang();
   const [filter, setFilter] = useState("");
   const [editing, setEditing] = useState<Program | "new" | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Program | null>(null);
@@ -66,7 +68,7 @@ export default function ProgramsPage() {
           className={btnPrimary}
           onClick={() => openEditor("new")}
           disabled={state.divisions.length === 0}
-          title={state.divisions.length === 0 ? "Lege zuerst eine Division an" : undefined}
+          title={state.divisions.length === 0 ? t("Lege zuerst eine Division an") : undefined}
         >
           + New program
         </button>
@@ -74,13 +76,13 @@ export default function ProgramsPage() {
 
       {ready && visible.length === 0 ? (
         <EmptyState
-          title={filter ? "Keine Treffer" : "Noch keine Programs"}
+          title={filter ? t("Keine Treffer") : t("Noch keine Programs")}
           hint={
             filter
-              ? "Filter anpassen."
+              ? t("Filter anpassen.")
               : state.divisions.length === 0
-                ? "Lege zuerst unter Divisions eine Division an."
-                : "Lege das erste Program an, z. B. „MACE“."
+                ? t("Lege zuerst unter Divisions eine Division an.")
+                : t("Lege das erste Program an, z. B. „MACE“.")
           }
         />
       ) : (
@@ -151,7 +153,7 @@ export default function ProgramsPage() {
                 className={inputCls}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="z. B. MACE"
+                placeholder={t("z. B. MACE")}
                 autoFocus
               />
             </div>
@@ -189,8 +191,8 @@ export default function ProgramsPage() {
       {confirmDelete && (
         <Modal title="Delete program" onClose={() => setConfirmDelete(null)}>
           <p className="text-sm text-neutral-600">
-            „{confirmDelete.name}“ wirklich löschen? Alle zugehörigen Projects (inkl.
-            hochgeladener Auswertungen) werden ebenfalls entfernt.
+            „{confirmDelete.name}“{" "}
+            {t("wirklich löschen? Alle zugehörigen Projects (inkl. hochgeladener Auswertungen) werden ebenfalls entfernt.")}
           </p>
           <div className="mt-4 flex justify-end gap-2">
             <button type="button" className={btnSecondary} onClick={() => setConfirmDelete(null)}>

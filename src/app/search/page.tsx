@@ -4,6 +4,7 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
+import { useLang } from "@/lib/i18n";
 import { useHub } from "@/lib/store";
 import type { SearchSource } from "@/lib/search";
 import SearchPanel from "@/components/SearchPanel";
@@ -11,6 +12,7 @@ import { EmptyState, PageHeader } from "@/components/ui";
 
 export default function SearchPage() {
   const { state, ready } = useHub();
+  const { t } = useLang();
   const router = useRouter();
 
   const sources: SearchSource[] = useMemo(
@@ -25,13 +27,13 @@ export default function SearchPage() {
     <div className="space-y-6">
       <PageHeader
         title="Search"
-        sub="Volltextsuche über alle Projekte — mit Statistik: wie oft, in welchen Projekten und Notiz-Typen der Begriff vorkommt."
+        sub={t("Volltextsuche über alle Projekte — mit Statistik: wie oft, in welchen Projekten und Notiz-Typen der Begriff vorkommt.")}
       />
 
       {ready && sources.length === 0 ? (
         <EmptyState
-          title="Noch keine Inhalte"
-          hint="Lade zuerst in einem Projekt einen Second-Brain-Export (ZIP) hoch."
+          title={t("Noch keine Inhalte")}
+          hint={t("Lade zuerst in einem Projekt einen Second-Brain-Export (ZIP) hoch.")}
         />
       ) : (
         <SearchPanel

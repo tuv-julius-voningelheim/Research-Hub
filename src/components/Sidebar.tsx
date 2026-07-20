@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
+import { LangToggle, useLang } from "@/lib/i18n";
 import { useHub } from "@/lib/store";
 
 const NAV: { href: string; label: string; icon: ReactNode }[] = [
@@ -65,18 +66,19 @@ const NAV: { href: string; label: string; icon: ReactNode }[] = [
 
 function SyncBadge() {
   const { mode, syncError } = useHub();
+  const { t } = useLang();
   const dot = syncError
     ? "bg-red-500"
     : mode === "shared"
       ? "bg-emerald-500"
       : "bg-neutral-400";
   const label = syncError
-    ? "Sync-Fehler"
+    ? t("Sync-Fehler")
     : mode === "shared"
       ? "Shared · live"
       : mode === "local"
-        ? "Lokal · dieser Browser"
-        : "Verbinde…";
+        ? t("Lokal · dieser Browser")
+        : t("Verbinde…");
   return (
     <div className="flex items-center gap-2 rounded-lg bg-neutral-50 px-3 py-2 text-xs font-medium text-neutral-600 ring-1 ring-neutral-200">
       <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
@@ -168,7 +170,8 @@ export function MobileTopBar() {
             <nav className="flex-1 px-3">
               <NavList onNavigate={() => setOpen(false)} />
             </nav>
-            <div className="px-3 pb-4">
+            <div className="space-y-2 px-3 pb-4">
+              <LangToggle />
               <SyncBadge />
             </div>
           </div>
@@ -179,6 +182,7 @@ export function MobileTopBar() {
 }
 
 export default function Sidebar() {
+  const { t } = useLang();
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-neutral-200 bg-white lg:flex">
       <div className="flex items-center gap-3 px-5 pb-5 pt-6">
@@ -199,12 +203,13 @@ export default function Sidebar() {
 
       <nav className="flex-1 px-3">
         <div className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-widest text-neutral-400">
-          Menü
+          {t("Menü")}
         </div>
         <NavList />
       </nav>
 
-      <div className="px-3 pb-4">
+      <div className="space-y-2 px-3 pb-4">
+        <LangToggle />
         <SyncBadge />
       </div>
     </aside>

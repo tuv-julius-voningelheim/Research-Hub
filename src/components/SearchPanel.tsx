@@ -5,6 +5,7 @@
 // and highlighted snippets.
 
 import { useMemo, useState, type ReactNode } from "react";
+import { useLang } from "@/lib/i18n";
 import { queryRegex, searchVaults, type SearchSource } from "@/lib/search";
 import type { Note, NoteType } from "@/lib/types";
 import { Card, EmptyState, inputCls } from "@/components/ui";
@@ -50,6 +51,7 @@ export default function SearchPanel({
   onOpen: (sourceId: string, note: Note) => void;
   autoFocus?: boolean;
 }) {
+  const { t } = useLang();
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<NoteType | "all">("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
@@ -66,7 +68,7 @@ export default function SearchPanel({
     <div className="space-y-5">
       <input
         className={`${inputCls} max-w-xl text-[15px]`}
-        placeholder="Suchen… (z. B. „Appendix ABC“, „Timeline“, „EUDAMED“)"
+        placeholder={t("Suchen… (z. B. „Appendix ABC“, „Timeline“, „EUDAMED“)")}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         autoFocus={autoFocus}
@@ -85,7 +87,7 @@ export default function SearchPanel({
                 : "bg-white text-neutral-600 ring-neutral-200 hover:bg-neutral-50"
             }`}
           >
-            {f === "all" ? "Alle Typen" : TYPE_LABEL[f]}
+            {f === "all" ? t("Alle Typen") : t(TYPE_LABEL[f])}
           </button>
         ))}
         {sources.length > 1 && (
@@ -94,7 +96,7 @@ export default function SearchPanel({
             onChange={(e) => setSourceFilter(e.target.value)}
             className="ml-auto cursor-pointer rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs font-semibold text-neutral-600 outline-none"
           >
-            <option value="all">Alle Projekte</option>
+            <option value="all">{t("Alle Projekte")}</option>
             {sources.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
@@ -112,27 +114,27 @@ export default function SearchPanel({
               <span className="text-xl font-bold text-neutral-900">
                 {stats.totalOccurrences}
               </span>
-              <span className="ml-1.5 text-xs text-neutral-500">Vorkommen</span>
+              <span className="ml-1.5 text-xs text-neutral-500">{t("Vorkommen")}</span>
             </div>
             <div>
               <span className="text-xl font-bold text-neutral-900">{stats.noteCount}</span>
-              <span className="ml-1.5 text-xs text-neutral-500">Notizen</span>
+              <span className="ml-1.5 text-xs text-neutral-500">{t("Notizen")}</span>
             </div>
             <div>
               <span className="text-xl font-bold text-neutral-900">
                 {stats.perSource.length}
               </span>
               <span className="ml-1.5 text-xs text-neutral-500">
-                {stats.perSource.length === 1 ? "Projekt" : "Projekte"}
+                {stats.perSource.length === 1 ? t("Projekt") : t("Projekte")}
               </span>
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {stats.perType.map((t) => (
+              {stats.perType.map((ty) => (
                 <span
-                  key={t.type}
+                  key={ty.type}
                   className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600"
                 >
-                  {TYPE_LABEL[t.type]} {t.occurrences}×
+                  {t(TYPE_LABEL[ty.type])} {ty.occurrences}×
                 </span>
               ))}
             </div>
@@ -163,11 +165,11 @@ export default function SearchPanel({
       {/* results */}
       {!active ? (
         <EmptyState
-          title="Suchbegriff eingeben"
-          hint="Mindestens 2 Zeichen. Durchsucht Titel, Inhalte und Zitate — mit Statistik, wie oft und wo der Begriff vorkommt."
+          title={t("Suchbegriff eingeben")}
+          hint={t("Mindestens 2 Zeichen. Durchsucht Titel, Inhalte und Zitate — mit Statistik, wie oft und wo der Begriff vorkommt.")}
         />
       ) : hits.length === 0 ? (
-        <EmptyState title="Keine Treffer" hint="Anderen Suchbegriff oder Filter probieren." />
+        <EmptyState title={t("Keine Treffer")} hint={t("Anderen Suchbegriff oder Filter probieren.")} />
       ) : (
         <div className="space-y-2">
           {hits.map((h) => (

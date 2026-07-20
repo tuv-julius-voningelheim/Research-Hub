@@ -4,6 +4,7 @@
 // blocks with placement. Everything here also surfaces in the report & share.
 
 import { useState } from "react";
+import { useLang } from "@/lib/i18n";
 import { useHub } from "@/lib/store";
 import type { Project, ReportPlacement } from "@/lib/types";
 import { Card, SectionTitle, btnPrimary, btnSecondary, inputCls } from "@/components/ui";
@@ -29,6 +30,7 @@ function StringList({
   accent: string;
 }) {
   const [draft, setDraft] = useState("");
+  const { t } = useLang();
   return (
     <div>
       <ul className="mb-2 space-y-1.5">
@@ -49,7 +51,7 @@ function StringList({
               type="button"
               onClick={() => onChange(items.filter((_, idx) => idx !== i))}
               className="shrink-0 cursor-pointer rounded-lg p-2 text-neutral-400 hover:bg-red-50 hover:text-red-600"
-              aria-label="Entfernen"
+              aria-label={t("Entfernen")}
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M18 6 6 18M6 6l12 12" />
@@ -82,6 +84,7 @@ function StringList({
 }
 
 export default function ContextTab({ project }: { project: Project }) {
+  const { t } = useLang();
   const {
     setGoals,
     setHypotheses,
@@ -101,32 +104,32 @@ export default function ContextTab({ project }: { project: Project }) {
       {/* goals + hypotheses */}
       <div className="space-y-6">
         <div>
-          <SectionTitle sub="Was soll dieses Research beantworten? Erscheint oben im Report & Share.">
+          <SectionTitle sub={t("Was soll dieses Research beantworten? Erscheint oben im Report & Share.")}>
             Research Goals
           </SectionTitle>
           <Card className="p-4">
             <StringList
               items={project.goals ?? []}
               onChange={(g) => setGoals(project.id, g)}
-              placeholder="Neues Research Goal…"
+              placeholder={t("Neues Research Goal…")}
               accent="#0057b8"
             />
           </Card>
         </div>
         <div>
-          <SectionTitle sub="Annahmen, die das Research prüfen soll.">Hypothesen</SectionTitle>
+          <SectionTitle sub={t("Annahmen, die das Research prüfen soll.")}>{t("Hypothesen")}</SectionTitle>
           <Card className="p-4">
             <StringList
               items={project.hypotheses ?? []}
               onChange={(h) => setHypotheses(project.id, h)}
-              placeholder="Neue Hypothese…"
+              placeholder={t("Neue Hypothese…")}
               accent="#d97706"
             />
           </Card>
         </div>
         <div>
-          <SectionTitle sub="Relevante Dokumente, Prototypen, Miro-Boards …">
-            Relevante Links
+          <SectionTitle sub={t("Relevante Dokumente, Prototypen, Miro-Boards …")}>
+            {t("Relevante Links")}
           </SectionTitle>
           <Card className="p-4">
             <ul className="mb-2 space-y-1.5">
@@ -146,7 +149,7 @@ export default function ContextTab({ project }: { project: Project }) {
                       setLinks(project.id, links.filter((x) => x.id !== l.id))
                     }
                     className="shrink-0 cursor-pointer rounded-lg p-2 text-neutral-400 hover:bg-red-50 hover:text-red-600"
-                    aria-label="Link entfernen"
+                    aria-label={t("Link entfernen")}
                   >
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M18 6 6 18M6 6l12 12" />
@@ -174,7 +177,7 @@ export default function ContextTab({ project }: { project: Project }) {
             >
               <input
                 className={inputCls}
-                placeholder="Bezeichnung (z. B. Prototyp)"
+                placeholder={t("Bezeichnung (z. B. Prototyp)")}
                 value={linkLabel}
                 onChange={(e) => setLinkLabel(e.target.value)}
               />
@@ -197,8 +200,8 @@ export default function ContextTab({ project }: { project: Project }) {
       {/* report blocks */}
       <div>
         <div className="mb-3 flex items-end justify-between gap-3">
-          <SectionTitle sub="Freie Inhalte für Report & Share — mit Position und Rich-Text (Überschriften, Fett, Kursiv, Listen …).">
-            Zusätzliche Report-Inhalte
+          <SectionTitle sub={t("Freie Inhalte für Report & Share — mit Position und Rich-Text (Überschriften, Fett, Kursiv, Listen …).")}>
+            {t("Zusätzliche Report-Inhalte")}
           </SectionTitle>
           <button
             type="button"
@@ -211,7 +214,7 @@ export default function ContextTab({ project }: { project: Project }) {
         <div className="space-y-3">
           {blocks.length === 0 && (
             <Card className="p-6 text-center text-sm text-neutral-400">
-              Noch keine zusätzlichen Inhalte.
+              {t("Noch keine zusätzlichen Inhalte.")}
             </Card>
           )}
           {blocks.map((b) => (
@@ -219,7 +222,7 @@ export default function ContextTab({ project }: { project: Project }) {
               <div className="mb-2 flex items-center gap-2">
                 <input
                   className="min-w-0 flex-1 rounded-lg border border-neutral-200 bg-white px-3.5 py-2 text-sm font-semibold text-neutral-900 outline-none focus:border-[#0057b8] focus:ring-4 focus:ring-blue-600/10"
-                  placeholder="Überschrift"
+                  placeholder={t("Überschrift")}
                   value={b.title}
                   onChange={(e) =>
                     updateReportBlock(project.id, b.id, { title: e.target.value })
@@ -236,7 +239,7 @@ export default function ContextTab({ project }: { project: Project }) {
                 >
                   {PLACEMENTS.map((p) => (
                     <option key={p.value} value={p.value}>
-                      {p.label}
+                      {t(p.label)}
                     </option>
                   ))}
                 </select>
@@ -244,7 +247,7 @@ export default function ContextTab({ project }: { project: Project }) {
                   type="button"
                   onClick={() => removeReportBlock(project.id, b.id)}
                   className="shrink-0 cursor-pointer rounded-lg p-2 text-neutral-400 hover:bg-red-50 hover:text-red-600"
-                  aria-label="Block entfernen"
+                  aria-label={t("Block entfernen")}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
@@ -254,7 +257,7 @@ export default function ContextTab({ project }: { project: Project }) {
               <RichEditor
                 html={b.body}
                 onChange={(v) => updateReportBlock(project.id, b.id, { body: v })}
-                placeholder="Inhalt… (Überschriften, Fett, Kursiv, Listen über die Leiste oben)"
+                placeholder={t("Inhalt… (Überschriften, Fett, Kursiv, Listen über die Leiste oben)")}
               />
             </Card>
           ))}

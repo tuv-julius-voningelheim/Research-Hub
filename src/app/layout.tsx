@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import LayoutShell from "@/components/LayoutShell";
+import { LangProvider } from "@/lib/i18n";
 import { HubProvider } from "@/lib/store";
 
 const sans = Inter({
@@ -21,9 +22,11 @@ export default function RootLayout({
   return (
     <html lang="de">
       <body className={`${sans.variable} antialiased`}>
-        <HubProvider>
-          <LayoutShell>{children}</LayoutShell>
-        </HubProvider>
+        <LangProvider>
+          <HubProvider>
+            <LayoutShell>{children}</LayoutShell>
+          </HubProvider>
+        </LangProvider>
       </body>
     </html>
   );

@@ -17,8 +17,9 @@ import {
   themeSummaries,
   totalQuotes,
 } from "@/lib/analytics";
-import { quoteKey } from "@/lib/types";
+import { categoryOf, quoteKey } from "@/lib/types";
 import { effectiveVault } from "@/lib/editable";
+import { LangToggle, useLang } from "@/lib/i18n";
 import { divisionOf, programOf, useHub } from "@/lib/store";
 import type { Note, ReportBlock, ReportPlacement } from "@/lib/types";
 import RichContent from "@/components/RichContent";
@@ -92,6 +93,7 @@ function QuoteBlock({ note, starred }: { note: Note; starred?: string[] }) {
 
 export default function ReportPage() {
   const params = useParams<{ id: string }>();
+  const { t, tf, dateLocale } = useLang();
   const { state, ready } = useHub();
   const project = state.projects.find((p) => p.id === params.id);
   const vault = useMemo(() => (project ? effectiveVault(project) : undefined), [project]);
@@ -115,9 +117,9 @@ export default function ReportPage() {
   if (!project) {
     return (
       <div className="p-10 text-sm text-neutral-500">
-        Projekt nicht gefunden.{" "}
+        {t("Projekt nicht gefunden.")}{" "}
         <Link href="/projects" className="text-[#0057b8] underline">
-          Zurück
+          {t("Zurück")}
         </Link>
       </div>
     );
@@ -140,15 +142,18 @@ export default function ReportPage() {
               href={`/projects/${project.id}`}
               className="text-sm font-semibold text-neutral-600 hover:text-neutral-900"
             >
-              ← Zurück
+              {t("← Zurück")}
             </Link>
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="cursor-pointer rounded-lg bg-[#0057b8] px-4 py-2 text-sm font-semibold text-white hover:bg-[#004a99]"
-            >
-              Als PDF speichern / Drucken
-            </button>
+            <div className="flex items-center gap-2">
+              <LangToggle compact />
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="cursor-pointer rounded-lg bg-[#0057b8] px-4 py-2 text-sm font-semibold text-white hover:bg-[#004a99]"
+              >
+                {t("Als PDF speichern / Drucken")}
+              </button>
+            </div>
           </div>
           {/* section picker */}
           <div className="mt-2.5 flex flex-wrap gap-1.5">
@@ -164,7 +169,7 @@ export default function ReportPage() {
                 }`}
               >
                 {on[s.key] ? "✓ " : ""}
-                {s.label}
+                {t(s.label)}
               </button>
             ))}
           </div>
@@ -185,7 +190,7 @@ export default function ReportPage() {
               <p className="mt-2 text-sm text-neutral-500">
                 {[division?.name, program?.name, project.method].filter(Boolean).join(" · ")}
                 {vault &&
-                  ` · Export vom ${new Date(vault.uploadedAt).toLocaleDateString("de-DE")}`}
+                  ` · ${t("Export vom")} ${new Date(vault.uploadedAt).toLocaleDateString(dateLocale)}`}
               </p>
             </div>
             <Image src="/tuv-sud-logo.png" alt="TÜV SÜD" width={56} height={56} />
@@ -194,7 +199,7 @@ export default function ReportPage() {
 
         {!vault ? (
           <p className="mt-8 text-sm text-neutral-500">
-            Noch kein Second-Brain-Export hochgeladen.
+            {t("Noch kein Second-Brain-Export hochgeladen.")}
           </p>
         ) : (
           <>
@@ -207,7 +212,7 @@ export default function ReportPage() {
                   [interviews.length, "Interviews"],
                   [themes.length, "Themes"],
                   [ranked.length, "Pain Points"],
-                  [totalQuotes(vault), "Belegte Zitate"],
+                  [totalQuotes(vault), t("Belegte Zitate")],
                 ].map(([v, l]) => (
                   <div key={l} className="bg-white px-4 py-3 text-center">
                     <div className="text-2xl font-bold text-neutral-900">{v}</div>
@@ -235,7 +240,7 @@ export default function ReportPage() {
                   )}
                   {(project.hypotheses?.length ?? 0) > 0 && (
                     <div>
-                      <h3 className="mb-2 text-sm font-bold text-neutral-900">Hypothesen</h3>
+                      <h3 className="mb-2 text-sm font-bold text-neutral-900">{t("Hypothesen")}</h3>
                       <ul className="space-y-1.5">
                         {project.hypotheses!.map((h, i) => (
                           <li key={i} className="flex gap-2 text-sm leading-relaxed text-neutral-700">
@@ -265,7 +270,7 @@ export default function ReportPage() {
                   Priority Shortlist
                 </h2>
                 <p className="mb-4 text-xs text-neutral-500">
-                  Rangiert nach Severity × Confidence × Evidenz
+                  {t("Rangiert nach Severity × Confidence × Evidenz")}
                 </p>
                 <ol className="space-y-2.5">
                   {ranked.slice(0, 10).map((r, i) => (
@@ -277,7 +282,7 @@ export default function ReportPage() {
                         <span className="font-semibold">{r.note.title}</span>
                         <span className="text-neutral-500">
                           {" "}
-                          — Evidenz aus {r.evidence} Interview(s)
+                          — {tf("Evidenz aus {n} Interview(s)", { n: r.evidence })}
                         </span>
                       </span>
                       <span
@@ -297,23 +302,23 @@ export default function ReportPage() {
               <section className="mt-10">
                 <SectionH2>Themes</SectionH2>
                 <div className="space-y-5">
-                  {themes.map((t) => (
-                    <div key={t.note.slug} className="break-inside-avoid">
+                  {themes.map((th) => (
+                    <div key={th.note.slug} className="break-inside-avoid">
                       <h3 className="text-[15px] font-bold text-neutral-900">
-                        {t.note.title}
+                        {th.note.title}
                       </h3>
                       <div className="mt-0.5 text-xs text-neutral-500">
-                        Confidence {cap(t.confidence)} · {t.interviewCount} Interviews ·{" "}
-                        {t.quoteCount} Zitate · {t.painPoints.length} Pain Points
+                        Confidence {t(cap(th.confidence))} · {th.interviewCount} Interviews ·{" "}
+                        {th.quoteCount} {t("Zitate")} · {th.painPoints.length} Pain Points
                       </div>
-                      {t.note.sections["Definition"] && (
+                      {th.note.sections["Definition"] && (
                         <p className="mt-1.5 text-sm leading-relaxed text-neutral-700">
-                          {stripWiki(t.note.sections["Definition"].split("\n")[0])}
+                          {stripWiki(th.note.sections["Definition"].split("\n")[0])}
                         </p>
                       )}
                       <QuoteBlock
-                        note={t.note}
-                        starred={project.starredQuotes?.[t.note.slug]}
+                        note={th.note}
+                        starred={project.starredQuotes?.[th.note.slug]}
                       />
                     </div>
                   ))}
@@ -336,16 +341,16 @@ export default function ReportPage() {
                         <span
                           className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${SEV_CLS[r.severity] ?? SEV_CLS.niedrig}`}
                         >
-                          {cap(r.severity)}
+                          {t(cap(r.severity))}
                         </span>
                       </div>
                       <div className="mt-0.5 text-xs text-neutral-500">
-                        Confidence {cap(r.confidence)} · Evidenz aus {r.evidence}{" "}
-                        Interview(s)
+                        Confidence {t(cap(r.confidence))} ·{" "}
+                        {tf("Evidenz aus {n} Interview(s)", { n: r.evidence })}
                       </div>
-                      {r.note.fields["Beschreibung"] && (
+                      {(r.note.fields["Beschreibung"] || r.note.fields["Description"]) && (
                         <p className="mt-1 text-sm leading-relaxed text-neutral-700">
-                          {stripWiki(r.note.fields["Beschreibung"])}
+                          {stripWiki(r.note.fields["Beschreibung"] || r.note.fields["Description"])}
                         </p>
                       )}
                     </div>
@@ -362,15 +367,15 @@ export default function ReportPage() {
                     <div key={n.slug} className="break-inside-avoid">
                       <h3 className="text-sm font-bold text-neutral-900">
                         {n.title}
-                        {n.frontmatter["kategorie"] && (
+                        {categoryOf(n) && (
                           <span className="ml-2 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200">
-                            {n.frontmatter["kategorie"]}
+                            {categoryOf(n)}
                           </span>
                         )}
                       </h3>
-                      {n.fields["Beschreibung"] && (
+                      {(n.fields["Beschreibung"] || n.fields["Description"]) && (
                         <p className="mt-1 text-sm leading-relaxed text-neutral-700">
-                          {stripWiki(n.fields["Beschreibung"])}
+                          {stripWiki(n.fields["Beschreibung"] || n.fields["Description"])}
                         </p>
                       )}
                     </div>
@@ -417,17 +422,17 @@ export default function ReportPage() {
                           {r.note.title}
                         </h3>
                         <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-[#0057b8] ring-1 ring-blue-200">
-                          Priority {cap(r.priority)}
+                          Priority {t(cap(r.priority))}
                         </span>
                       </div>
-                      {r.note.fields["Empfehlung"] && (
+                      {(r.note.fields["Empfehlung"] || r.note.fields["Recommendation"]) && (
                         <p className="mt-1.5 text-sm leading-relaxed text-neutral-700">
-                          {stripWiki(r.note.fields["Empfehlung"])}
+                          {stripWiki(r.note.fields["Empfehlung"] || r.note.fields["Recommendation"])}
                         </p>
                       )}
                       {r.anchorInsight && (
                         <p className="mt-2 text-xs text-neutral-500">
-                          Anker-Insight: {r.anchorInsight.title}
+                          {t("Anker-Insight:")} {r.anchorInsight.title}
                         </p>
                       )}
                     </div>
@@ -453,9 +458,9 @@ export default function ReportPage() {
                       <div className="mt-0.5 text-xs text-neutral-500">
                         Segment: {n.frontmatter["segment"] ?? "—"}
                       </div>
-                      {n.sections["Kontext"] && (
+                      {(n.sections["Kontext"] || n.sections["Context"]) && (
                         <p className="mt-1 text-sm leading-relaxed text-neutral-700">
-                          {stripWiki(n.sections["Kontext"].split("\n")[0])}
+                          {stripWiki((n.sections["Kontext"] || n.sections["Context"]).split("\n")[0])}
                         </p>
                       )}
                     </div>
@@ -499,7 +504,7 @@ export default function ReportPage() {
 
             {on.questions && questions.length > 0 && (
               <section className="mt-10 break-inside-avoid">
-                <SectionH2>Offene Fragen &amp; Research Gaps</SectionH2>
+                <SectionH2>{t("Offene Fragen & Research Gaps")}</SectionH2>
                 <ul className="space-y-1.5">
                   {questions.map((q, i) => (
                     <li key={i} className="flex gap-2 text-sm leading-relaxed text-neutral-700">
@@ -535,7 +540,7 @@ export default function ReportPage() {
 
             {on.notes && (project.nextSteps?.length || project.notes?.trim()) ? (
               <section className="mt-10 break-inside-avoid">
-                <SectionH2>Next Steps &amp; Notizen</SectionH2>
+                <SectionH2>{t("Next Steps & Notizen")}</SectionH2>
                 {project.nextSteps?.map((s) => (
                   <div key={s.id} className="flex items-center gap-2 text-sm text-neutral-700">
                     <span
@@ -565,8 +570,8 @@ export default function ReportPage() {
         )}
 
         <footer className="mt-12 border-t border-neutral-200 pt-4 text-xs text-neutral-400">
-          Generiert am {new Date().toLocaleDateString("de-DE")} · TÜV SÜD UX Research
-          Insight Hub · programmatische Auswertung ohne KI
+          {t("Generiert am")} {new Date().toLocaleDateString(dateLocale)} · TÜV SÜD UX
+          Research Insight Hub · {t("programmatische Auswertung ohne KI")}
         </footer>
       </article>
     </div>

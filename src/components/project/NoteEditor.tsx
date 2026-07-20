@@ -5,6 +5,7 @@
 // and for edits on uploaded notes.
 
 import { useEffect, useMemo, useState } from "react";
+import { useLang } from "@/lib/i18n";
 import { SCHEMA, TYPE_TITLE, emptyEditable } from "@/lib/editable";
 import type { EditableContent, NoteType } from "@/lib/types";
 import { Modal, btnPrimary, btnSecondary, inputCls } from "@/components/ui";
@@ -37,6 +38,7 @@ export default function NoteEditor({
   title?: string;
 }) {
   const schema = SCHEMA[type];
+  const { t, tf } = useLang();
   const [c, setC] = useState<EditableContent>(
     () => initial ?? emptyEditable(type)
   );
@@ -62,20 +64,23 @@ export default function NoteEditor({
   const canSave = c.title.trim().length > 0;
 
   const heading = useMemo(
-    () => title ?? `${TYPE_TITLE[type]} ${initial ? "bearbeiten" : "anlegen"}`,
-    [title, type, initial]
+    () =>
+      title ??
+      tf(initial ? "{x} bearbeiten" : "{x} anlegen", { x: TYPE_TITLE[type] }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [title, type, initial, tf]
   );
 
   return (
     <Modal title={heading} onClose={onClose} wide>
       <div className="max-h-[70vh] space-y-4 overflow-y-auto pr-1">
         <div>
-          <label className={labelCls}>Titel</label>
+          <label className={labelCls}>{t("Titel")}</label>
           <input
             className={inputCls}
             value={c.title}
             onChange={(e) => set({ title: e.target.value })}
-            placeholder={`Titel des ${TYPE_TITLE[type]}`}
+            placeholder={tf("Titel des {x}", { x: TYPE_TITLE[type] })}
             autoFocus
           />
         </div>
@@ -85,7 +90,7 @@ export default function NoteEditor({
           <div className="grid grid-cols-2 gap-3">
             {schema.meta.map((m) => (
               <div key={m.key}>
-                <label className={labelCls}>{m.label}</label>
+                <label className={labelCls}>{t(m.label)}</label>
                 {m.options ? (
                   <select
                     className={inputCls}
@@ -95,7 +100,7 @@ export default function NoteEditor({
                     <option value="">—</option>
                     {m.options.map((o) => (
                       <option key={o} value={o}>
-                        {o}
+                        {t(o)}
                       </option>
                     ))}
                   </select>
@@ -112,7 +117,7 @@ export default function NoteEditor({
               const opts = refOptions[r.refType] ?? [];
               return (
                 <div key={r.key}>
-                  <label className={labelCls}>{r.label}</label>
+                  <label className={labelCls}>{t(r.label)}</label>
                   <select
                     className={inputCls}
                     value={c.refs[r.key] ?? ""}
@@ -134,7 +139,7 @@ export default function NoteEditor({
         {/* text fields */}
         {schema.fields.map((f) => (
           <div key={f.key}>
-            <label className={labelCls}>{f.label}</label>
+            <label className={labelCls}>{t(f.label)}</label>
             <textarea
               className={`${inputCls} min-h-[80px] resize-y leading-relaxed`}
               value={c.fields[f.key] ?? ""}
@@ -147,13 +152,13 @@ export default function NoteEditor({
         {/* quotes */}
         <div>
           <div className="mb-1.5 flex items-center justify-between">
-            <label className={labelCls}>Belegte Zitate</label>
+            <label className={labelCls}>{t("Belegte Zitate")}</label>
             <button
               type="button"
               onClick={addQuote}
               className="cursor-pointer text-xs font-semibold text-[#0057b8] hover:underline"
             >
-              + Zitat
+              {t("+ Zitat")}
             </button>
           </div>
           <div className="space-y-2">
@@ -163,20 +168,20 @@ export default function NoteEditor({
                   className={`${inputCls} min-h-[54px] resize-y text-sm italic`}
                   value={q.text}
                   onChange={(e) => setQuote(i, { text: e.target.value })}
-                  placeholder="Wörtliches Zitat…"
+                  placeholder={t("Wörtliches Zitat…")}
                 />
                 <div className="mt-1.5 flex items-center gap-2">
                   <input
                     className={`${inputCls} py-1.5 text-xs`}
                     value={q.source ?? ""}
                     onChange={(e) => setQuote(i, { source: e.target.value })}
-                    placeholder="Quelle (z. B. INT-001)"
+                    placeholder={t("Quelle (z. B. INT-001)")}
                   />
                   <button
                     type="button"
                     onClick={() => removeQuote(i)}
                     className="shrink-0 cursor-pointer rounded-lg p-2 text-neutral-400 hover:bg-red-50 hover:text-red-600"
-                    aria-label="Zitat entfernen"
+                    aria-label={t("Zitat entfernen")}
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M18 6 6 18M6 6l12 12" />
@@ -187,7 +192,7 @@ export default function NoteEditor({
             ))}
             {quotes.length === 0 && (
               <p className="rounded-lg bg-neutral-50 px-3 py-3 text-center text-xs text-neutral-400 ring-1 ring-neutral-200">
-                Noch keine Zitate.
+                {t("Noch keine Zitate.")}
               </p>
             )}
           </div>
@@ -201,14 +206,14 @@ export default function NoteEditor({
             onClick={onDelete}
             className="cursor-pointer rounded-lg px-3 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
           >
-            {deleteLabel ?? "Löschen"}
+            {deleteLabel ? t(deleteLabel) : t("Löschen")}
           </button>
         ) : (
           <span />
         )}
         <div className="flex gap-2">
           <button type="button" className={btnSecondary} onClick={onClose}>
-            Abbrechen
+            {t("Abbrechen")}
           </button>
           <button
             type="button"
@@ -216,7 +221,7 @@ export default function NoteEditor({
             disabled={!canSave}
             onClick={() => onSave({ ...c, title: c.title.trim() })}
           >
-            Speichern
+            {t("Speichern")}
           </button>
         </div>
       </div>

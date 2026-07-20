@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { useMemo, useState } from "react";
+import { useLang } from "@/lib/i18n";
 import { useHub } from "@/lib/store";
 import type { Division } from "@/lib/types";
 import {
@@ -19,6 +20,7 @@ import { OrgIcon } from "@/components/icons";
 
 export default function DivisionsPage() {
   const { state, ready, addDivision, updateDivision, removeDivision } = useHub();
+  const { t } = useLang();
   const [filter, setFilter] = useState("");
   const [editing, setEditing] = useState<Division | "new" | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Division | null>(null);
@@ -73,11 +75,11 @@ export default function DivisionsPage() {
 
       {ready && visible.length === 0 ? (
         <EmptyState
-          title={filter ? "Keine Treffer" : "Noch keine Divisions"}
+          title={filter ? t("Keine Treffer") : t("Noch keine Divisions")}
           hint={
             filter
-              ? "Filter anpassen."
-              : "Lege die erste Division an, z. B. „Product Service“."
+              ? t("Filter anpassen.")
+              : t("Lege die erste Division an, z. B. „Product Service“.")
           }
         />
       ) : (
@@ -150,13 +152,13 @@ export default function DivisionsPage() {
                 className={inputCls}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="z. B. Product Service"
+                placeholder={t("z. B. Product Service")}
                 autoFocus
               />
             </div>
             <div>
               <label className="mb-1 block text-xs font-bold text-neutral-600">
-                Beschreibung (optional)
+                {t("Beschreibung (optional)")}
               </label>
               <textarea
                 className={inputCls}
@@ -180,8 +182,8 @@ export default function DivisionsPage() {
       {confirmDelete && (
         <Modal title="Delete division" onClose={() => setConfirmDelete(null)}>
           <p className="text-sm text-neutral-600">
-            „{confirmDelete.name}“ wirklich löschen? Alle zugehörigen Programs und
-            Projects (inkl. hochgeladener Auswertungen) werden ebenfalls entfernt.
+            „{confirmDelete.name}“{" "}
+            {t("wirklich löschen? Alle zugehörigen Programs und Projects (inkl. hochgeladener Auswertungen) werden ebenfalls entfernt.")}
           </p>
           <div className="mt-4 flex justify-end gap-2">
             <button type="button" className={btnSecondary} onClick={() => setConfirmDelete(null)}>

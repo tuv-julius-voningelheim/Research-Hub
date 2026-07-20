@@ -18,6 +18,7 @@ import {
 } from "@/lib/analytics";
 import { BarRow, SEVERITY_COLOR } from "@/components/Bars";
 import ShareModal from "@/components/ShareModal";
+import { useLang } from "@/lib/i18n";
 import { useHub } from "@/lib/store";
 import {
   Card,
@@ -39,6 +40,7 @@ const CONF_DOT: Record<string, string> = {
 export default function ProgramDetailPage() {
   const params = useParams<{ id: string }>();
   const { state, ready, mode } = useHub();
+  const { t, dateLocale } = useLang();
   const [shareOpen, setShareOpen] = useState(false);
 
   const program = state.programs.find((p) => p.id === params.id);
@@ -88,10 +90,10 @@ export default function ProgramDetailPage() {
   if (!program) {
     return (
       <EmptyState
-        title="Program nicht gefunden"
+        title={t("Program nicht gefunden")}
         action={
           <Link href="/programs" className="text-sm font-bold text-[#004a99] hover:underline">
-            ← Zurück zu Programs
+            {t("← Zurück zu Programs")}
           </Link>
         }
       />
@@ -122,8 +124,8 @@ export default function ProgramDetailPage() {
               {program.name}
             </h1>
             <div className="text-sm text-neutral-500">
-              {division?.name ?? "—"} · Konsolidierte Sicht über {projects.length}{" "}
-              {projects.length === 1 ? "Projekt" : "Projekte"}
+              {division?.name ?? "—"} · {t("Konsolidierte Sicht über")} {projects.length}{" "}
+              {projects.length === 1 ? t("Projekt") : t("Projekte")}
             </div>
           </div>
           {mode === "shared" && (
@@ -137,7 +139,7 @@ export default function ProgramDetailPage() {
                   <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
                   <path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4" />
                 </svg>
-                Teilen
+                {t("Teilen")}
               </span>
             </button>
           )}
@@ -146,13 +148,13 @@ export default function ProgramDetailPage() {
           <StatTile value={projects.length} label="Projects" icon={FolderIcon} />
           <StatTile value={stats.interviews} label="Interviews" icon={UsersIcon} />
           <StatTile value={stats.files} label="Research files" icon={FileIcon} />
-          <StatTile value={stats.quotes} label="Belegte Zitate" icon={QuoteIcon} tone="green" />
+          <StatTile value={stats.quotes} label={t("Belegte Zitate")} icon={QuoteIcon} tone="green" />
         </div>
       </Card>
 
       {/* projects of this program */}
       <section>
-        <SectionTitle>Projekte (chronologisch)</SectionTitle>
+        <SectionTitle>{t("Projekte (chronologisch)")}</SectionTitle>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           {projects.map((p) => (
             <Link key={p.id} href={`/projects/${p.id}`}>
@@ -163,8 +165,8 @@ export default function ProgramDetailPage() {
                 </div>
                 <div className="mt-1 text-xs text-neutral-500">
                   {p.vault
-                    ? `${p.vault.notes.length} files · Upload ${new Date(p.vault.uploadedAt).toLocaleDateString("de-DE")}`
-                    : "Noch kein Upload"}
+                    ? `${p.vault.notes.length} files · Upload ${new Date(p.vault.uploadedAt).toLocaleDateString(dateLocale)}`
+                    : t("Noch kein Upload")}
                 </div>
               </Card>
             </Link>
@@ -178,7 +180,7 @@ export default function ProgramDetailPage() {
           {sevDist.length > 0 && (
             <Card className="p-5">
               <h3 className="mb-4 text-sm font-bold text-neutral-900">
-                Pain Points nach Severity (alle Projekte)
+                {t("Pain Points nach Severity (alle Projekte)")}
               </h3>
               <div className="space-y-2.5">
                 {sevDist.map((d) => (
@@ -196,7 +198,7 @@ export default function ProgramDetailPage() {
           {needDist.length > 0 && (
             <Card className="p-5">
               <h3 className="mb-4 text-sm font-bold text-neutral-900">
-                Needs nach Kategorie (alle Projekte)
+                {t("Needs nach Kategorie (alle Projekte)")}
               </h3>
               <div className="space-y-2.5">
                 {needDist.map((d) => (
@@ -208,7 +210,7 @@ export default function ProgramDetailPage() {
           <Card className="flex flex-col justify-center gap-1 p-5">
             <div className="text-3xl font-bold text-neutral-900">{questionCount}</div>
             <div className="text-sm text-neutral-500">
-              Offene Fragen &amp; Research Gaps im Programm
+              {t("Offene Fragen & Research Gaps im Programm")}
             </div>
           </Card>
         </div>
@@ -217,23 +219,23 @@ export default function ProgramDetailPage() {
       {/* recurring themes across projects */}
       {themes.length > 0 && (
         <section>
-          <SectionTitle sub="Über Projekte hinweg zusammengeführt (per Slug/Titel). Punkte zeigen die Confidence-Entwicklung je Runde — Muster sollten sich mit neuer Evidenz erhärten.">
-            Themes im Programm
+          <SectionTitle sub={t("Über Projekte hinweg zusammengeführt (per Slug/Titel). Punkte zeigen die Confidence-Entwicklung je Runde — Muster sollten sich mit neuer Evidenz erhärten.")}>
+            {t("Themes im Programm")}
           </SectionTitle>
           <div className="space-y-2">
-            {themes.map((t) => (
-              <Card key={t.title} className="flex flex-wrap items-center gap-3 px-4 py-3">
+            {themes.map((th) => (
+              <Card key={th.title} className="flex flex-wrap items-center gap-3 px-4 py-3">
                 <span className="min-w-0 flex-1 text-sm font-semibold text-neutral-800">
-                  {t.title}
+                  {th.title}
                 </span>
-                {t.occurrences.length > 1 && (
+                {th.occurrences.length > 1 && (
                   <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-bold text-indigo-700 ring-1 ring-indigo-200">
-                    {t.occurrences.length} Projekte
+                    {th.occurrences.length} {t("Projekte")}
                   </span>
                 )}
-                <span className="text-xs text-neutral-500">{t.totalQuotes} Zitate</span>
-                <span className="flex items-center gap-1" title="Confidence je Projekt (chronologisch)">
-                  {t.occurrences.map((o, i) => (
+                <span className="text-xs text-neutral-500">{th.totalQuotes} {t("Zitate")}</span>
+                <span className="flex items-center gap-1" title={t("Confidence je Projekt (chronologisch)")}>
+                  {th.occurrences.map((o, i) => (
                     <Link
                       key={i}
                       href={`/projects/${o.projectId}?note=${encodeURIComponent(o.note.slug)}`}
@@ -242,14 +244,13 @@ export default function ProgramDetailPage() {
                     />
                   ))}
                 </span>
-                <ConfidenceBadge level={t.maxConfidence} />
+                <ConfidenceBadge level={th.maxConfidence} />
               </Card>
             ))}
           </div>
           {recurring.length === 0 && projects.length > 1 && (
             <p className="mt-2 text-xs text-neutral-500">
-              Noch kein Theme taucht in mehreren Projekten auf — bei künftigen Uploads
-              werden wiederkehrende Muster hier zusammengeführt.
+              {t("Noch kein Theme taucht in mehreren Projekten auf — bei künftigen Uploads werden wiederkehrende Muster hier zusammengeführt.")}
             </p>
           )}
         </section>
@@ -258,8 +259,8 @@ export default function ProgramDetailPage() {
       {/* top pain points across the program */}
       {crossPP.length > 0 && (
         <section>
-          <SectionTitle sub="Top 10 über alle Projekte, rangiert nach Severity × Confidence × Evidenz">
-            Pain-Point-Shortlist des Programms
+          <SectionTitle sub={t("Top 10 über alle Projekte, rangiert nach Severity × Confidence × Evidenz")}>
+            {t("Pain-Point-Shortlist des Programms")}
           </SectionTitle>
           <div className="space-y-2">
             {crossPP.map((r, i) => (
@@ -287,8 +288,8 @@ export default function ProgramDetailPage() {
 
       {projects.length === 0 && (
         <EmptyState
-          title="Noch keine Projekte in diesem Programm"
-          hint="Lege unter Projects ein Projekt an und wähle dieses Programm."
+          title={t("Noch keine Projekte in diesem Programm")}
+          hint={t("Lege unter Projects ein Projekt an und wähle dieses Programm.")}
         />
       )}
 

@@ -17,6 +17,7 @@ import {
   slugIndex,
   totalQuotes,
 } from "@/lib/analytics";
+import { LangToggle, useLang } from "@/lib/i18n";
 import type { SearchSource } from "@/lib/search";
 import type { Note, NoteType, ProjectLink, ReportBlock, Vault } from "@/lib/types";
 import { BarRow, SEVERITY_COLOR } from "@/components/Bars";
@@ -117,6 +118,7 @@ function ProjectView({
   initialNote?: string | null;
 }) {
   const vault = project.vault ?? undefined;
+  const { t } = useLang();
   const [tab, setTab] = useState("overview");
   const [noteSlug, setNoteSlug] = useState<string | null>(initialNote ?? null);
   const types = useMemo(() => byType(vault), [vault]);
@@ -139,7 +141,7 @@ function ProjectView({
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path d="m15 18-6-6 6-6" />
           </svg>
-          Übersicht
+          {t("Übersicht")}
         </button>
       )}
       <div>
@@ -153,8 +155,8 @@ function ProjectView({
 
       {!vault ? (
         <EmptyState
-          title="Noch keine Auswertung"
-          hint="Für dieses Projekt wurde noch kein Export hochgeladen."
+          title={t("Noch keine Auswertung")}
+          hint={t("Für dieses Projekt wurde noch kein Export hochgeladen.")}
         />
       ) : (
         <>
@@ -235,6 +237,7 @@ function ScopeOverview({
   data: ShareData;
   onOpenProject: (id: string) => void;
 }) {
+  const { t } = useLang();
   const projects = data.projects;
   const merged = useMemo(() => mergeVaults(projects.map((p) => ({ vault: p.vault ?? undefined }))), [projects]);
   const themes = useMemo(
@@ -271,11 +274,11 @@ function ScopeOverview({
           value={projects.reduce((s, p) => s + (p.vault?.notes.length ?? 0), 0)}
           label="Research files"
         />
-        <StatTile value={quotes} label="Belegte Zitate" tone="green" />
+        <StatTile value={quotes} label={t("Belegte Zitate")} tone="green" />
       </div>
 
       <section>
-        <SectionTitle>Projekte</SectionTitle>
+        <SectionTitle>{t("Projekte")}</SectionTitle>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           {projects.map((p) => (
             <button
@@ -296,8 +299,8 @@ function ScopeOverview({
 
       {crossPP.length > 0 && (
         <section>
-          <SectionTitle sub="Top-Pain-Points über alle enthaltenen Projekte, rangiert nach Severity × Confidence × Evidenz">
-            Pain-Point-Shortlist
+          <SectionTitle sub={t("Top-Pain-Points über alle enthaltenen Projekte, rangiert nach Severity × Confidence × Evidenz")}>
+            {t("Pain-Point-Shortlist")}
           </SectionTitle>
           <div className="space-y-2">
             {crossPP.map((r, i) => (
@@ -328,7 +331,7 @@ function ScopeOverview({
         {sevDist.length > 0 && (
           <Card className="p-5">
             <h3 className="mb-4 text-sm font-bold text-neutral-900">
-              Pain Points nach Severity
+              {t("Pain Points nach Severity")}
             </h3>
             <div className="space-y-2.5">
               {sevDist.map((d) => (
@@ -345,19 +348,19 @@ function ScopeOverview({
         )}
         {themes.length > 0 && (
           <Card className="p-5">
-            <h3 className="mb-4 text-sm font-bold text-neutral-900">Top-Themes</h3>
+            <h3 className="mb-4 text-sm font-bold text-neutral-900">{t("Top-Themes")}</h3>
             <div className="space-y-2">
-              {themes.map((t) => (
-                <div key={t.title} className="flex items-center gap-2">
+              {themes.map((th) => (
+                <div key={th.title} className="flex items-center gap-2">
                   <span className="min-w-0 flex-1 truncate text-sm font-semibold text-neutral-800">
-                    {t.title}
+                    {th.title}
                   </span>
-                  {t.occurrences.length > 1 && (
+                  {th.occurrences.length > 1 && (
                     <span className="shrink-0 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-bold text-indigo-700 ring-1 ring-indigo-200">
-                      {t.occurrences.length}×
+                      {th.occurrences.length}×
                     </span>
                   )}
-                  <ConfidenceBadge level={t.maxConfidence} />
+                  <ConfidenceBadge level={th.maxConfidence} />
                 </div>
               ))}
             </div>
@@ -370,6 +373,7 @@ function ScopeOverview({
 
 export default function SharePage() {
   const params = useParams<{ token: string }>();
+  const { t } = useLang();
   const [data, setData] = useState<ShareData | null>(null);
   const [status, setStatus] = useState<"loading" | "ok" | "notfound">("loading");
   // navigation: root (scope overview | search) or a child project
@@ -403,7 +407,7 @@ export default function SharePage() {
   if (status === "loading") {
     return (
       <div className="flex min-h-screen items-center justify-center text-sm text-neutral-500">
-        Lade geteilte Ergebnisse…
+        {t("Lade geteilte Ergebnisse…")}
       </div>
     );
   }
@@ -412,8 +416,8 @@ export default function SharePage() {
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
         <EmptyState
-          title="Link ungültig oder widerrufen"
-          hint="Dieser Freigabe-Link existiert nicht mehr. Bitte eine neue Freigabe anfordern."
+          title={t("Link ungültig oder widerrufen")}
+          hint={t("Dieser Freigabe-Link existiert nicht mehr. Bitte eine neue Freigabe anfordern.")}
         />
       </div>
     );
@@ -458,10 +462,11 @@ export default function SharePage() {
                   <circle cx="11" cy="11" r="7" />
                   <path d="m21 21-4.35-4.35" />
                 </svg>
-                Suche
+                {t("Suche")}
               </span>
             </button>
           )}
+          <LangToggle compact />
           <span className="hidden rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-600 ring-1 ring-neutral-200 sm:block">
             Read-only
           </span>
@@ -501,7 +506,7 @@ export default function SharePage() {
         )}
 
         <footer className="mt-12 border-t border-neutral-200 pt-4 text-center text-xs text-neutral-400">
-          TÜV SÜD · UX Research Insight Hub · geteilte, schreibgeschützte Ansicht
+          TÜV SÜD · UX Research Insight Hub · {t("geteilte, schreibgeschützte Ansicht")}
         </footer>
       </div>
     </div>
