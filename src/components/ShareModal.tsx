@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useLang } from "@/lib/i18n";
 import { useHub } from "@/lib/store";
 import { shareKindOf, shareTargetOf, type ShareKind } from "@/lib/types";
-import { Modal, btnSecondary, inputCls } from "@/components/ui";
+import { Modal, btnPrimary, btnSecondary, inputCls } from "@/components/ui";
 
 const KIND_LABEL: Record<ShareKind, string> = {
   project: "dieses Projekts",
@@ -82,7 +82,7 @@ export default function ShareModal({
 
       <button
         type="button"
-        className="w-full cursor-pointer rounded-lg bg-[#0057b8] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#004a99]"
+        className={`w-full ${btnPrimary}`}
         onClick={async () => {
           const share = createShare(kind, targetId);
           const url = `${window.location.origin}/share/${share.token}`;

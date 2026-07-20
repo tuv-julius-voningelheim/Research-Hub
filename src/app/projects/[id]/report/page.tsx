@@ -23,6 +23,7 @@ import { LangToggle, useLang } from "@/lib/i18n";
 import { divisionOf, programOf, useHub } from "@/lib/store";
 import type { Note, ReportBlock, ReportPlacement } from "@/lib/types";
 import RichContent from "@/components/RichContent";
+import { btnPrimary } from "@/components/ui";
 
 function cap(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -146,11 +147,7 @@ export default function ReportPage() {
             </Link>
             <div className="flex items-center gap-2">
               <LangToggle compact />
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="cursor-pointer rounded-lg bg-[#0057b8] px-4 py-2 text-sm font-semibold text-white hover:bg-[#004a99]"
-              >
+              <button type="button" onClick={() => window.print()} className={btnPrimary}>
                 {t("Als PDF speichern / Drucken")}
               </button>
             </div>

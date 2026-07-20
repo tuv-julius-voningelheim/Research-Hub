@@ -247,6 +247,10 @@ export const btnSecondary =
 export const btnDanger =
   "cursor-pointer rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700";
 
+/** compact primary link/button used for the card "Open" actions */
+export const btnOpen =
+  "flex cursor-pointer items-center gap-1 rounded-lg bg-[#0057b8] px-3.5 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-[#004a99]";
+
 // ---- icon buttons (edit / delete) ----
 
 export function IconButton({

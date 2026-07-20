@@ -12,6 +12,8 @@ import {
   EmptyState,
   IconButton,
   Modal,
+  btnDanger,
+  btnOpen,
   btnPrimary,
   btnSecondary,
   inputCls,
@@ -123,10 +125,7 @@ export default function DivisionsPage() {
                       {projectCount} {projectCount === 1 ? t("project") : t("projects")}
                     </Chip>
                     <span className="flex-1" />
-                    <Link
-                      href={`/divisions/${d.id}`}
-                      className="flex items-center gap-1 rounded-lg bg-[#0057b8] px-3.5 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-[#004a99]"
-                    >
+                    <Link href={`/divisions/${d.id}`} className={btnOpen}>
                       {t("Open")}
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                         <path d="m9 18 6-6-6-6" />
@@ -191,7 +190,7 @@ export default function DivisionsPage() {
             </button>
             <button
               type="button"
-              className="cursor-pointer rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-700"
+              className={btnDanger}
               onClick={() => {
                 removeDivision(confirmDelete.id);
                 setConfirmDelete(null);

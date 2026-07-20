@@ -274,10 +274,7 @@ function ProjectDetail() {
                 >
                   Markdown
                 </button>
-                <Link
-                  href={`/projects/${project.id}/report`}
-                  className="cursor-pointer rounded-lg bg-[#0057b8] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#004a99]"
-                >
+                <Link href={`/projects/${project.id}/report`} className={btnPrimary}>
                   PDF-Report
                 </Link>
               </>

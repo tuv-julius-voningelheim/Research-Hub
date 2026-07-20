@@ -24,6 +24,7 @@ import {
   EmptyState,
   SectionTitle,
   StatTile,
+  btnSecondary,
 } from "@/components/ui";
 import { FileIcon, FolderIcon, OrgIcon, ProgramIcon, UsersIcon } from "@/components/icons";
 
@@ -96,11 +97,7 @@ export default function DivisionDetailPage() {
             )}
           </div>
           {mode === "shared" && (
-            <button
-              type="button"
-              onClick={() => setShareOpen(true)}
-              className="cursor-pointer rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50"
-            >
+            <button type="button" onClick={() => setShareOpen(true)} className={btnSecondary}>
               <span className="inline-flex items-center gap-1.5">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
