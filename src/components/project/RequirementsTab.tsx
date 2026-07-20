@@ -62,7 +62,7 @@ export default function RequirementsTab({ project }: { project: Project }) {
             onChange={(e) => setDraft(e.target.value)}
           />
           <button type="submit" className={btnPrimary} disabled={!draft.trim()}>
-            Add
+            {t("Add")}
           </button>
         </form>
 

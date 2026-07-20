@@ -92,19 +92,19 @@ export default function DashboardPage() {
             className="flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-[#0e2f5f] transition-colors hover:bg-blue-50"
           >
             {FolderIcon}
-            View projects
+            {t("View projects")}
           </Link>
         </div>
       </div>
 
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatTile value={state.projects.length} label="Projects" icon={FolderIcon} />
-        <StatTile value={state.divisions.length} label="Divisions" icon={OrgIcon} />
-        <StatTile value={stats.files} label="Research files" icon={FileIcon} />
+        <StatTile value={state.projects.length} label={t("Projects")} icon={FolderIcon} />
+        <StatTile value={state.divisions.length} label={t("Divisions")} icon={OrgIcon} />
+        <StatTile value={stats.files} label={t("Research files")} icon={FileIcon} />
         <StatTile
           value={stats.findings}
-          label="Findings extracted"
+          label={t("Findings extracted")}
           icon={InsightIcon}
           tone="green"
         />
@@ -112,7 +112,7 @@ export default function DashboardPage() {
 
       {/* recent projects */}
       <section>
-        <h2 className="mb-3 text-lg font-bold text-neutral-900">Recent projects</h2>
+        <h2 className="mb-3 text-lg font-bold text-neutral-900">{t("Recent projects")}</h2>
         {!ready ? null : recent.length === 0 ? (
           <EmptyState
             title={t("Noch keine Projekte")}
@@ -132,7 +132,7 @@ export default function DashboardPage() {
                       <StatusBadge status={p.status} />
                     </div>
                     <div className="mt-1 text-sm text-neutral-500">
-                      {division?.name ?? "—"} · {p.vault?.notes.length ?? 0} files
+                      {division?.name ?? "—"} · {p.vault?.notes.length ?? 0} {t("files")}
                     </div>
                   </Card>
                 </Link>
@@ -159,7 +159,7 @@ export default function DashboardPage() {
       {byDivision.rows.length > 0 && (
         <section>
           <h2 className="mb-3 text-lg font-bold text-neutral-900">
-            Projects by division
+            {t("Projects by division")}
           </h2>
           <Card className="space-y-3 p-5">
             {byDivision.rows.map(({ division, count }) => (

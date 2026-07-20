@@ -2,6 +2,8 @@
 
 // Small horizontal bar rows for distributions (shared across dashboards).
 
+import { useLang } from "@/lib/i18n";
+
 export const SEVERITY_COLOR: Record<string, string> = {
   kritisch: "#b3261e",
   hoch: "#c4540a",
@@ -20,10 +22,14 @@ export function BarRow({
   max: number;
   color?: string;
 }) {
+  const { t } = useLang();
+  // distribution labels are lowercase German keys (hoch, funktional, …) —
+  // capitalise, then localise
+  const display = t(label.charAt(0).toUpperCase() + label.slice(1));
   return (
     <div className="flex items-center gap-3">
-      <div className="w-28 shrink-0 truncate text-sm font-semibold capitalize text-neutral-700">
-        {label}
+      <div className="w-28 shrink-0 truncate text-sm font-semibold text-neutral-700">
+        {display}
       </div>
       <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-neutral-100">
         <div

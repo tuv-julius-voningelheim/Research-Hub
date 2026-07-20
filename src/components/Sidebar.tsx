@@ -89,6 +89,7 @@ function SyncBadge() {
 
 function NavList({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const { t } = useLang();
   return (
     <ul className="space-y-0.5">
       {NAV.map((item) => {
@@ -108,7 +109,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
               <span className={active ? "text-[#0057b8]" : "text-neutral-400"}>
                 {item.icon}
               </span>
-              {item.label}
+              {t(item.label)}
             </Link>
           </li>
         );

@@ -68,16 +68,16 @@ export default function ProjectsPage() {
     <div className="space-y-6">
       <input
         className={`${inputCls} max-w-md`}
-        placeholder="Filter projects…"
+        placeholder={t("Filter projects…")}
         value={filter}
         onChange={(e) => setFilter(e.target.value)}
       />
 
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-neutral-900">Projects</h1>
+          <h1 className="text-2xl font-extrabold text-neutral-900">{t("Projects")}</h1>
           <p className="mt-1 text-sm text-neutral-500">
-            Every research project, its master data and its uploaded second-brain export.
+            {t("Every research project, its master data and its uploaded second-brain export.")}
           </p>
         </div>
         <button
@@ -95,7 +95,7 @@ export default function ProjectsPage() {
             }
           }}
         >
-          + New project
+          {t("+ New project")}
         </button>
       </div>
 
@@ -133,7 +133,7 @@ export default function ProjectsPage() {
                     <StatusBadge status={p.status} />
                   </div>
                   <p className="mt-3 text-sm text-neutral-500">
-                    {p.description || "No description."}
+                    {p.description || t("No description.")}
                   </p>
                   <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-neutral-500">
                     {p.method && (
@@ -146,11 +146,11 @@ export default function ProjectsPage() {
                     )}
                     <span className="flex items-center gap-1.5">
                       <span className="text-neutral-400">{UsersIcon}</span>
-                      {interviews} participants
+                      {interviews} {t("participants")}
                     </span>
                     <span className="flex items-center gap-1.5">
                       <span className="text-neutral-400">{FileIcon}</span>
-                      {p.vault?.notes.length ?? 0} files
+                      {p.vault?.notes.length ?? 0} {t("files")}
                     </span>
                   </div>
                 </div>
@@ -160,20 +160,20 @@ export default function ProjectsPage() {
                     className="min-w-0 flex-1 truncate rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-semibold text-neutral-600 ring-1 ring-neutral-200"
                     title={p.vault?.name}
                   >
-                    {p.vault ? p.vault.name : "No upload yet"}
+                    {p.vault ? p.vault.name : t("No upload yet")}
                   </span>
                   <div className="flex shrink-0 items-center gap-1.5">
-                    <IconButton kind="edit" label="Edit project" onClick={() => openEditor(p)} />
+                    <IconButton kind="edit" label={t("Edit project")} onClick={() => openEditor(p)} />
                     <IconButton
                       kind="delete"
-                      label="Delete project"
+                      label={t("Delete project")}
                       onClick={() => setConfirmDelete(p)}
                     />
                     <Link
                       href={`/projects/${p.id}`}
                       className="ml-1 flex items-center gap-1 rounded-lg bg-[#004a99] px-3.5 py-1.5 text-sm font-bold text-white hover:bg-[#003b7a]"
                     >
-                      Open
+                      {t("Open")}
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                         <path d="m9 18 6-6-6-6" />
                       </svg>
@@ -188,7 +188,7 @@ export default function ProjectsPage() {
 
       {editing && (
         <Modal
-          title={editing === "new" ? "New project" : "Edit project"}
+          title={editing === "new" ? t("New project") : t("Edit project")}
           onClose={() => setEditing(null)}
         >
           {state.programs.length === 0 ? (
@@ -232,9 +232,9 @@ export default function ProjectsPage() {
                     value={status}
                     onChange={(e) => setStatus(e.target.value as ProjectStatus)}
                   >
-                    <option value="planned">Planned</option>
-                    <option value="in-analysis">In analysis</option>
-                    <option value="completed">Completed</option>
+                    <option value="planned">{t("Planned")}</option>
+                    <option value="in-analysis">{t("In analysis")}</option>
+                    <option value="completed">{t("Completed")}</option>
                   </select>
                 </div>
               </div>
@@ -260,7 +260,7 @@ export default function ProjectsPage() {
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" className={btnSecondary} onClick={() => setEditing(null)}>
-                  Cancel
+                  {t("Cancel")}
                 </button>
                 <button
                   type="button"
@@ -268,7 +268,7 @@ export default function ProjectsPage() {
                   onClick={save}
                   disabled={!name.trim() || !programId}
                 >
-                  Save
+                  {t("Save")}
                 </button>
               </div>
             </div>
@@ -277,13 +277,13 @@ export default function ProjectsPage() {
       )}
 
       {confirmDelete && (
-        <Modal title="Delete project" onClose={() => setConfirmDelete(null)}>
+        <Modal title={t("Delete project")} onClose={() => setConfirmDelete(null)}>
           <p className="text-sm text-neutral-600">
             „{confirmDelete.name}“ {t("inkl. hochgeladener Auswertung wirklich löschen?")}
           </p>
           <div className="mt-4 flex justify-end gap-2">
             <button type="button" className={btnSecondary} onClick={() => setConfirmDelete(null)}>
-              Cancel
+              {t("Cancel")}
             </button>
             <button
               type="button"
@@ -293,7 +293,7 @@ export default function ProjectsPage() {
                 setConfirmDelete(null);
               }}
             >
-              Delete
+              {t("Delete")}
             </button>
           </div>
         </Modal>

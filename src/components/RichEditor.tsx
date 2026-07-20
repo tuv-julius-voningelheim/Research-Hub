@@ -5,6 +5,7 @@
 // HTML. No external dependencies.
 
 import { useEffect, useRef, useState } from "react";
+import { useLang } from "@/lib/i18n";
 import { sanitizeHtml } from "@/lib/richtext";
 
 interface ToolButton {
@@ -68,6 +69,7 @@ export default function RichEditor({
   placeholder?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const { t } = useLang();
   const [focused, setFocused] = useState(false);
 
   // initialise once — never write back from props (avoids cursor jumps)
@@ -114,7 +116,7 @@ export default function RichEditor({
             <button
               key={b.key}
               type="button"
-              title={b.title}
+              title={t(b.title)}
               onMouseDown={(e) => {
                 e.preventDefault();
                 run(b);

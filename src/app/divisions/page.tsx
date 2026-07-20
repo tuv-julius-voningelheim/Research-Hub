@@ -56,20 +56,20 @@ export default function DivisionsPage() {
     <div className="space-y-6">
       <input
         className={`${inputCls} max-w-md`}
-        placeholder="Filter divisions…"
+        placeholder={t("Filter divisions…")}
         value={filter}
         onChange={(e) => setFilter(e.target.value)}
       />
 
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-neutral-900">Divisions</h1>
+          <h1 className="text-2xl font-extrabold text-neutral-900">{t("Divisions")}</h1>
           <p className="mt-1 text-sm text-neutral-500">
-            Organise research into divisions → programs → projects.
+            {t("Organise research into divisions → programs → projects.")}
           </p>
         </div>
         <button type="button" className={btnPrimary} onClick={() => openEditor("new")}>
-          + New division
+          {t("+ New division")}
         </button>
       </div>
 
@@ -104,10 +104,10 @@ export default function DivisionsPage() {
                       </div>
                     </div>
                     <div className="flex shrink-0 gap-1.5">
-                      <IconButton kind="edit" label="Edit division" onClick={() => openEditor(d)} />
+                      <IconButton kind="edit" label={t("Edit division")} onClick={() => openEditor(d)} />
                       <IconButton
                         kind="delete"
-                        label="Delete division"
+                        label={t("Delete division")}
                         onClick={() => setConfirmDelete(d)}
                       />
                     </div>
@@ -117,17 +117,17 @@ export default function DivisionsPage() {
                   )}
                   <div className="mt-3 flex items-center gap-2">
                     <Chip tone="blue">
-                      {programs.length} {programs.length === 1 ? "program" : "programs"}
+                      {programs.length} {programs.length === 1 ? t("program") : t("programs")}
                     </Chip>
                     <Chip>
-                      {projectCount} {projectCount === 1 ? "project" : "projects"}
+                      {projectCount} {projectCount === 1 ? t("project") : t("projects")}
                     </Chip>
                     <span className="flex-1" />
                     <Link
                       href={`/divisions/${d.id}`}
                       className="flex items-center gap-1 rounded-lg bg-[#0057b8] px-3.5 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-[#004a99]"
                     >
-                      Open
+                      {t("Open")}
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                         <path d="m9 18 6-6-6-6" />
                       </svg>
@@ -142,7 +142,7 @@ export default function DivisionsPage() {
 
       {editing && (
         <Modal
-          title={editing === "new" ? "New division" : "Edit division"}
+          title={editing === "new" ? t("New division") : t("Edit division")}
           onClose={() => setEditing(null)}
         >
           <div className="space-y-3">
@@ -169,10 +169,10 @@ export default function DivisionsPage() {
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <button type="button" className={btnSecondary} onClick={() => setEditing(null)}>
-                Cancel
+                {t("Cancel")}
               </button>
               <button type="button" className={btnPrimary} onClick={save} disabled={!name.trim()}>
-                Save
+                {t("Save")}
               </button>
             </div>
           </div>
@@ -180,14 +180,14 @@ export default function DivisionsPage() {
       )}
 
       {confirmDelete && (
-        <Modal title="Delete division" onClose={() => setConfirmDelete(null)}>
+        <Modal title={t("Delete division")} onClose={() => setConfirmDelete(null)}>
           <p className="text-sm text-neutral-600">
             „{confirmDelete.name}“{" "}
             {t("wirklich löschen? Alle zugehörigen Programs und Projects (inkl. hochgeladener Auswertungen) werden ebenfalls entfernt.")}
           </p>
           <div className="mt-4 flex justify-end gap-2">
             <button type="button" className={btnSecondary} onClick={() => setConfirmDelete(null)}>
-              Cancel
+              {t("Cancel")}
             </button>
             <button
               type="button"
@@ -197,7 +197,7 @@ export default function DivisionsPage() {
                 setConfirmDelete(null);
               }}
             >
-              Delete
+              {t("Delete")}
             </button>
           </div>
         </Modal>

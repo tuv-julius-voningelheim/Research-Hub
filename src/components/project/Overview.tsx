@@ -133,10 +133,12 @@ function BarRow({
   max: number;
   color?: string;
 }) {
+  const { t } = useLang();
+  const display = t(label.charAt(0).toUpperCase() + label.slice(1));
   return (
     <div className="flex items-center gap-3">
-      <div className="w-28 shrink-0 text-sm font-semibold capitalize text-neutral-700">
-        {label}
+      <div className="w-28 shrink-0 text-sm font-semibold text-neutral-700">
+        {display}
       </div>
       <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-neutral-100">
         <div
@@ -238,7 +240,7 @@ export default function Overview({
         <section>
           <div className="mb-3 flex items-center gap-2">
             <span className="text-[#004a99]">{FlagIcon}</span>
-            <h3 className="text-base font-bold text-neutral-900">Priority shortlist</h3>
+            <h3 className="text-base font-bold text-neutral-900">{t("Priority shortlist")}</h3>
             <span className="text-xs text-neutral-500">
               {t("rangiert nach Severity × Confidence × Evidenz")}
             </span>

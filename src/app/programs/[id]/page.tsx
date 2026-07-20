@@ -111,7 +111,7 @@ export default function ProgramDetailPage() {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
           <path d="m15 18-6-6 6-6" />
         </svg>
-        Programs
+        {t("Programs")}
       </Link>
 
       <Card className="p-5">
@@ -145,9 +145,9 @@ export default function ProgramDetailPage() {
           )}
         </div>
         <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatTile value={projects.length} label="Projects" icon={FolderIcon} />
+          <StatTile value={projects.length} label={t("Projects")} icon={FolderIcon} />
           <StatTile value={stats.interviews} label="Interviews" icon={UsersIcon} />
-          <StatTile value={stats.files} label="Research files" icon={FileIcon} />
+          <StatTile value={stats.files} label={t("Research files")} icon={FileIcon} />
           <StatTile value={stats.quotes} label={t("Belegte Zitate")} icon={QuoteIcon} tone="green" />
         </div>
       </Card>
@@ -165,7 +165,7 @@ export default function ProgramDetailPage() {
                 </div>
                 <div className="mt-1 text-xs text-neutral-500">
                   {p.vault
-                    ? `${p.vault.notes.length} files · Upload ${new Date(p.vault.uploadedAt).toLocaleDateString(dateLocale)}`
+                    ? `${p.vault.notes.length} ${t("files")} · Upload ${new Date(p.vault.uploadedAt).toLocaleDateString(dateLocale)}`
                     : t("Noch kein Upload")}
                 </div>
               </Card>

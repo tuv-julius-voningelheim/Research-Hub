@@ -26,7 +26,7 @@ export default function SearchPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Search"
+        title={t("Search")}
         sub={t("Volltextsuche über alle Projekte — mit Statistik: wie oft, in welchen Projekten und Notiz-Typen der Begriff vorkommt.")}
       />
 

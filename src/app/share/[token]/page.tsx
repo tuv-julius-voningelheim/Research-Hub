@@ -161,14 +161,14 @@ function ProjectView({
       ) : (
         <>
           <TabBar
-            tabs={PROJECT_TABS.map((t) => ({
-              key: t.key,
-              label: t.label,
+            tabs={PROJECT_TABS.map((tb) => ({
+              key: tb.key,
+              label: t(tb.label),
               count:
-                t.types.length > 0
-                  ? t.types.reduce((s, ty) => s + types[ty].length, 0)
+                tb.types.length > 0
+                  ? tb.types.reduce((s, ty) => s + types[ty].length, 0)
                   : undefined,
-            })).filter((t) => t.count === undefined || t.count > 0)}
+            })).filter((tb) => tb.count === undefined || tb.count > 0)}
             active={tab}
             onSelect={(k) => {
               setTab(k);
@@ -196,12 +196,12 @@ function ProjectView({
               starredQuotes={project.starredQuotes}
             />
           )}
-          {PROJECT_TABS.filter((t) => t.types.length > 0 && t.key !== "insights-recs").map(
-            (t) => {
-              if (tab !== t.key) return null;
-              const notes = t.types.flatMap((ty) => types[ty]);
+          {PROJECT_TABS.filter((tb) => tb.types.length > 0 && tb.key !== "insights-recs").map(
+            (tb) => {
+              if (tab !== tb.key) return null;
+              const notes = tb.types.flatMap((ty) => types[ty]);
               return (
-                <div key={t.key} className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <div key={tb.key} className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                   {notes.map((n) => (
                     <NoteCard
                       key={n.path}
@@ -268,11 +268,11 @@ function ScopeOverview({
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <StatTile value={projects.length} label="Projects" />
+        <StatTile value={projects.length} label={t("Projects")} />
         <StatTile value={interviews} label="Interviews" />
         <StatTile
           value={projects.reduce((s, p) => s + (p.vault?.notes.length ?? 0), 0)}
-          label="Research files"
+          label={t("Research files")}
         />
         <StatTile value={quotes} label={t("Belegte Zitate")} tone="green" />
       </div>
@@ -290,7 +290,7 @@ function ScopeOverview({
               <div className="text-sm font-bold text-neutral-900">{p.name}</div>
               <div className="mt-1 text-xs text-neutral-500">
                 {[p.programName, p.method].filter(Boolean).join(" · ")} ·{" "}
-                {p.vault?.notes.length ?? 0} files
+                {p.vault?.notes.length ?? 0} {t("files")}
               </div>
             </button>
           ))}

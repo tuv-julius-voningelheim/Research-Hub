@@ -79,7 +79,7 @@ export default function DivisionDetailPage() {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
           <path d="m15 18-6-6 6-6" />
         </svg>
-        Divisions
+        {t("Divisions")}
       </Link>
 
       <Card className="p-5">
@@ -112,17 +112,17 @@ export default function DivisionDetailPage() {
           )}
         </div>
         <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">
-          <StatTile value={programs.length} label="Programs" icon={ProgramIcon} />
-          <StatTile value={projects.length} label="Projects" icon={FolderIcon} />
+          <StatTile value={programs.length} label={t("Programs")} icon={ProgramIcon} />
+          <StatTile value={projects.length} label={t("Projects")} icon={FolderIcon} />
           <StatTile value={stats.interviews} label="Interviews" icon={UsersIcon} />
-          <StatTile value={stats.files} label="Research files" icon={FileIcon} />
+          <StatTile value={stats.files} label={t("Research files")} icon={FileIcon} />
           <StatTile value={stats.findings} label="Findings" tone="green" />
         </div>
       </Card>
 
       {/* programs */}
       <section>
-        <SectionTitle>Programs</SectionTitle>
+        <SectionTitle>{t("Programs")}</SectionTitle>
         {programs.length === 0 ? (
           <EmptyState title={t("Noch keine Programs in dieser Division")} />
         ) : (
@@ -136,11 +136,11 @@ export default function DivisionDetailPage() {
                     <div className="mt-2 flex gap-2">
                       <Chip tone="blue">
                         {pProjects.length}{" "}
-                        {pProjects.length === 1 ? "project" : "projects"}
+                        {pProjects.length === 1 ? t("project") : t("projects")}
                       </Chip>
                       <Chip>
                         {pProjects.reduce((s, pr) => s + (pr.vault?.notes.length ?? 0), 0)}{" "}
-                        files
+                        {t("files")}
                       </Chip>
                     </div>
                   </Card>

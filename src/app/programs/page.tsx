@@ -51,16 +51,16 @@ export default function ProgramsPage() {
     <div className="space-y-6">
       <input
         className={`${inputCls} max-w-md`}
-        placeholder="Filter programs…"
+        placeholder={t("Filter programs…")}
         value={filter}
         onChange={(e) => setFilter(e.target.value)}
       />
 
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-neutral-900">Programs</h1>
+          <h1 className="text-2xl font-extrabold text-neutral-900">{t("Programs")}</h1>
           <p className="mt-1 text-sm text-neutral-500">
-            Group related projects and see their insights consolidated.
+            {t("Group related projects and see their insights consolidated.")}
           </p>
         </div>
         <button
@@ -70,7 +70,7 @@ export default function ProgramsPage() {
           disabled={state.divisions.length === 0}
           title={state.divisions.length === 0 ? t("Lege zuerst eine Division an") : undefined}
         >
-          + New program
+          {t("+ New program")}
         </button>
       </div>
 
@@ -111,25 +111,25 @@ export default function ProgramsPage() {
                     </div>
                   </div>
                   <div className="flex shrink-0 gap-1.5">
-                    <IconButton kind="edit" label="Edit program" onClick={() => openEditor(p)} />
+                    <IconButton kind="edit" label={t("Edit program")} onClick={() => openEditor(p)} />
                     <IconButton
                       kind="delete"
-                      label="Delete program"
+                      label={t("Delete program")}
                       onClick={() => setConfirmDelete(p)}
                     />
                   </div>
                 </div>
                 <div className="mt-3 flex items-center gap-2">
                   <Chip tone="blue">
-                    {projects.length} {projects.length === 1 ? "project" : "projects"}
+                    {projects.length} {projects.length === 1 ? t("project") : t("projects")}
                   </Chip>
-                  <Chip>{files} files</Chip>
+                  <Chip>{files} {t("files")}</Chip>
                   <span className="flex-1" />
                   <Link
                     href={`/programs/${p.id}`}
                     className="flex items-center gap-1 rounded-xl bg-gradient-to-b from-[#0a5cd5] to-[#004a99] px-3.5 py-1.5 text-sm font-bold text-white transition-all hover:brightness-110 active:scale-[0.98]"
                   >
-                    Open
+                    {t("Open")}
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <path d="m9 18 6-6-6-6" />
                     </svg>
@@ -143,7 +143,7 @@ export default function ProgramsPage() {
 
       {editing && (
         <Modal
-          title={editing === "new" ? "New program" : "Edit program"}
+          title={editing === "new" ? t("New program") : t("Edit program")}
           onClose={() => setEditing(null)}
         >
           <div className="space-y-3">
@@ -173,7 +173,7 @@ export default function ProgramsPage() {
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <button type="button" className={btnSecondary} onClick={() => setEditing(null)}>
-                Cancel
+                {t("Cancel")}
               </button>
               <button
                 type="button"
@@ -181,7 +181,7 @@ export default function ProgramsPage() {
                 onClick={save}
                 disabled={!name.trim() || !divisionId}
               >
-                Save
+                {t("Save")}
               </button>
             </div>
           </div>
@@ -189,14 +189,14 @@ export default function ProgramsPage() {
       )}
 
       {confirmDelete && (
-        <Modal title="Delete program" onClose={() => setConfirmDelete(null)}>
+        <Modal title={t("Delete program")} onClose={() => setConfirmDelete(null)}>
           <p className="text-sm text-neutral-600">
             „{confirmDelete.name}“{" "}
             {t("wirklich löschen? Alle zugehörigen Projects (inkl. hochgeladener Auswertungen) werden ebenfalls entfernt.")}
           </p>
           <div className="mt-4 flex justify-end gap-2">
             <button type="button" className={btnSecondary} onClick={() => setConfirmDelete(null)}>
-              Cancel
+              {t("Cancel")}
             </button>
             <button
               type="button"
@@ -206,7 +206,7 @@ export default function ProgramsPage() {
                 setConfirmDelete(null);
               }}
             >
-              Delete
+              {t("Delete")}
             </button>
           </div>
         </Modal>

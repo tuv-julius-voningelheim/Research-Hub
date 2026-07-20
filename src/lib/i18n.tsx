@@ -1,10 +1,11 @@
 "use client";
 
-// Lightweight DE/EN UI language layer. German is the source language:
-// components pass their (current) German strings through t(), which returns
-// the English translation in EN mode and the string itself in DE mode —
-// untranslated strings therefore fall back to German instead of breaking.
-// Vault CONTENT is never translated, only the UI chrome.
+// Lightweight DE/EN UI language layer. Components pass their literal source
+// string through t(); the EN map translates German-source strings for EN
+// mode, the DE map translates English-source strings for DE mode. Unknown
+// strings fall back to themselves, so nothing can break. Research jargon
+// (Themes, Pain Points, Severity, …) deliberately stays English in both
+// languages. Vault CONTENT is never translated, only the UI chrome.
 
 import {
   createContext,
@@ -178,6 +179,15 @@ const EN: Record<string, string> = {
   "Entfernen": "Remove",
   "Link entfernen": "Remove link",
 
+  // rich text toolbar
+  "Unterüberschrift": "Subheading",
+  "Fett": "Bold",
+  "Kursiv": "Italic",
+  "Unterstrichen": "Underline",
+  "Aufzählung": "Bullet list",
+  "Nummerierte Liste": "Numbered list",
+  "Zitat": "Quote",
+
   // insights & recs tab
   "Synthese über mehrere Themes hinweg — das „Warum“ hinter den Mustern. Ein Insight fasst zusammen, was die Evidenz aus mehreren Interviews strukturell bedeutet.":
     "Synthesis across several themes — the “why” behind the patterns. An insight sums up what the evidence from several interviews means structurally.",
@@ -330,6 +340,11 @@ const EN: Record<string, string> = {
     "This share link no longer exists. Please request a new one.",
   "geteilte, schreibgeschützte Ansicht": "shared, read-only view",
 
+  // distribution labels (translated after capitalisation)
+  "Geplant": "Planned",
+  "In Analyse": "In analysis",
+  "Abgeschlossen": "Completed",
+
   // report
   "Goals & Hypothesen": "Goals & hypotheses",
   "Pain Points (alle)": "Pain points (all)",
@@ -346,6 +361,79 @@ const EN: Record<string, string> = {
   "Anker-Insight:": "Anchor insight:",
   "Generiert am": "Generated on",
   "programmatische Auswertung ohne KI": "programmatic analysis without AI",
+};
+
+// English UI string -> German (for chrome that was written in English)
+const DE: Record<string, string> = {
+  // nav / shell
+  "Search": "Suche",
+
+  // status
+  "Planned": "Geplant",
+  "In analysis": "In Analyse",
+  "Completed": "Abgeschlossen",
+
+  // dashboard
+  "View projects": "Projekte ansehen",
+  "Recent projects": "Zuletzt angelegte Projekte",
+  "Projects by division": "Projekte nach Division",
+  "Research files": "Research-Dateien",
+  "Findings extracted": "Extrahierte Findings",
+  "Findings": "Findings",
+
+  // counters / small words
+  "files": "Dateien",
+  "file": "Datei",
+  "participants": "Teilnehmer",
+  "Participants": "Teilnehmer",
+  "program": "Programm",
+  "programs": "Programme",
+  "project": "Projekt",
+  "projects": "Projekte",
+  "Projects": "Projekte",
+  "Programs": "Programme",
+  "Divisions": "Divisionen",
+  "Interviews": "Interviews",
+
+  // list pages
+  "Filter divisions…": "Divisions filtern…",
+  "Filter programs…": "Programs filtern…",
+  "Filter projects…": "Projekte filtern…",
+  "Organise research into divisions → programs → projects.":
+    "Research in Divisions → Programs → Projects organisieren.",
+  "Group related projects and see their insights consolidated.":
+    "Verwandte Projekte bündeln und ihre Erkenntnisse konsolidiert sehen.",
+  "Every research project, its master data and its uploaded second-brain export.":
+    "Jedes Research-Projekt, seine Stammdaten und der hochgeladene Second-Brain-Export.",
+  "+ New division": "+ Neue Division",
+  "+ New program": "+ Neues Programm",
+  "+ New project": "+ Neues Projekt",
+  "New division": "Neue Division",
+  "Edit division": "Division bearbeiten",
+  "Delete division": "Division löschen",
+  "New program": "Neues Programm",
+  "Edit program": "Programm bearbeiten",
+  "Delete program": "Programm löschen",
+  "New project": "Neues Projekt",
+  "Edit project": "Projekt bearbeiten",
+  "Delete project": "Projekt löschen",
+  "No description.": "Keine Beschreibung.",
+  "No upload yet": "Noch kein Upload",
+  "Open": "Öffnen",
+  "Cancel": "Abbrechen",
+  "Save": "Speichern",
+  "Delete": "Löschen",
+  "Add": "Hinzufügen",
+
+  // project detail
+  "Overview": "Übersicht",
+  "Files": "Dateien",
+  "Method": "Methode",
+  "Last upload": "Letzter Upload",
+  "Elements": "Elemente",
+
+  // overview / shortlist
+  "Priority shortlist": "Priority-Shortlist",
 };
 
 interface LangCtxValue {
@@ -388,7 +476,7 @@ export function LangProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const t = (s: string) => (lang === "en" ? (EN[s] ?? s) : s);
+  const t = (s: string) => (lang === "en" ? (EN[s] ?? s) : (DE[s] ?? s));
   const tf = (s: string, vars: Record<string, string | number>) => {
     let out = t(s);
     for (const [k, v] of Object.entries(vars)) {

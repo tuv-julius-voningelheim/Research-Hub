@@ -235,7 +235,7 @@ function ProjectDetail() {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
           <path d="m15 18-6-6 6-6" />
         </svg>
-        Projects
+        {t("Projects")}
       </Link>
 
       {/* header */}
@@ -296,9 +296,9 @@ function ProjectDetail() {
               </svg>
             }
             value={project.method ?? "—"}
-            label="Method"
+            label={t("Method")}
           />
-          <MasterDataTile icon={UsersIcon} value={interviews.length} label="Participants" />
+          <MasterDataTile icon={UsersIcon} value={interviews.length} label={t("Participants")} />
           <MasterDataTile icon={FileIcon} value={vault?.notes.length ?? 0} label={t("Elemente")} />
           <MasterDataTile
             icon={
@@ -308,7 +308,7 @@ function ProjectDetail() {
               </svg>
             }
             value={project.vault ? new Date(project.vault.uploadedAt).toLocaleDateString(dateLocale) : "—"}
-            label="Last upload"
+            label={t("Last upload")}
           />
         </div>
       </Card>
