@@ -75,7 +75,7 @@ function SyncBadge() {
   const label = syncError
     ? t("Sync-Fehler")
     : mode === "shared"
-      ? "Shared · live"
+      ? t("Shared · live")
       : mode === "local"
         ? t("Lokal · dieser Browser")
         : t("Verbinde…");

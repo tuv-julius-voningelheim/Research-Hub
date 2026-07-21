@@ -367,6 +367,7 @@ const EN: Record<string, string> = {
 const DE: Record<string, string> = {
   // nav / shell
   "Search": "Suche",
+  "Shared · live": "Geteilt · live",
 
   // status
   "Planned": "Geplant",
