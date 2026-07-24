@@ -17,6 +17,11 @@ import { quoteKey, type EditableContent, type Note, type NoteType, type Vault } 
 import ContextTab from "@/components/project/ContextTab";
 import InsightsRecsTab from "@/components/project/InsightsRecsTab";
 import NoteEditor from "@/components/project/NoteEditor";
+import NoteFilters, {
+  emptyNoteFilter,
+  filterNotes,
+  type NoteFilterState,
+} from "@/components/project/NoteFilters";
 import NotesTab from "@/components/project/NotesTab";
 import RequirementsTab from "@/components/project/RequirementsTab";
 import UploadDiffModal from "@/components/project/UploadDiffModal";
@@ -33,11 +38,11 @@ import { TypePill } from "@/components/project/NoteDrawer";
 
 const TABS: { key: string; label: string; types: NoteType[] }[] = [
   { key: "overview", label: "Overview", types: [] },
+  { key: "insights-recs", label: "Insights & Recs", types: ["insight", "recommendation"] },
   { key: "themes", label: "Themes", types: ["theme"] },
   { key: "pain-points", label: "Pain Points", types: ["pain-point"] },
   { key: "positives", label: "Positives", types: ["positive-pattern"] },
   { key: "needs", label: "Needs", types: ["need"] },
-  { key: "insights-recs", label: "Insights & Recs", types: ["insight", "recommendation"] },
   { key: "personas", label: "Personas", types: ["persona"] },
   { key: "interviews", label: "Interviews", types: ["interview"] },
   { key: "context", label: "Kontext", types: [] },
@@ -144,6 +149,7 @@ function ProjectDetail() {
   const [shareOpen, setShareOpen] = useState(false);
   const [editor, setEditor] = useState<EditorState>(null);
   const [pendingUpload, setPendingUpload] = useState<Vault | null>(null);
+  const [noteFilter, setNoteFilter] = useState<NoteFilterState>(emptyNoteFilter);
 
   const project = state.projects.find((p) => p.id === params.id);
   const vault = useMemo(() => (project ? effectiveVault(project) : undefined), [project]);
@@ -348,7 +354,10 @@ function ProjectDetail() {
                   <button
                     key={tb.key}
                     type="button"
-                    onClick={() => setQuery({ tab: tb.key, note: null })}
+                    onClick={() => {
+                      setNoteFilter(emptyNoteFilter);
+                      setQuery({ tab: tb.key, note: null });
+                    }}
                     className={`-mb-px cursor-pointer whitespace-nowrap border-b-2 px-3.5 py-2.5 text-sm font-semibold transition-colors ${
                       active
                         ? "border-[#0057b8] text-[#0057b8]"
@@ -418,7 +427,8 @@ function ProjectDetail() {
             (tb) => tb.types.length > 0 && tb.key !== "insights-recs" && tb.key !== "interviews"
           ).map((tb) => {
             if (tab !== tb.key) return null;
-            const notes = tb.types.flatMap((ty) => types[ty]);
+            const allNotes = tb.types.flatMap((ty) => types[ty]);
+            const notes = filterNotes(allNotes, noteFilter);
             const editable = tb.types.every((ty) => EDITABLE_TYPES.includes(ty));
             const hidden = (project.hiddenNotes ?? [])
               .map((s) => project.vault?.notes.find((n) => n.slug === s))
@@ -436,10 +446,18 @@ function ProjectDetail() {
                     </button>
                   </div>
                 )}
-                {notes.length === 0 ? (
+                {allNotes.length > 0 && (
+                  <NoteFilters notes={allNotes} filter={noteFilter} onChange={setNoteFilter} />
+                )}
+                {allNotes.length === 0 ? (
                   <EmptyState
                     title={`${t("Keine")} ${tb.label}`}
                     hint={editable ? t("Lege manuell ein Element an oder lade einen Export hoch.") : ""}
+                  />
+                ) : notes.length === 0 ? (
+                  <EmptyState
+                    title={t("Keine Treffer")}
+                    hint={t("Filter anpassen oder zurücksetzen.")}
                   />
                 ) : (
                   <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

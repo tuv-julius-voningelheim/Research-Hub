@@ -59,6 +59,8 @@ const EN: Record<string, string> = {
   // list pages
   "Keine Treffer": "No matches",
   "Filter anpassen.": "Adjust the filter.",
+  "Filter zurücksetzen": "Reset filters",
+  "Filter anpassen oder zurücksetzen.": "Adjust or reset the filters.",
   "Noch keine Divisions": "No divisions yet",
   "Lege die erste Division an, z. B. „Product Service“.":
     "Create the first division, e.g. “Product Service”.",
