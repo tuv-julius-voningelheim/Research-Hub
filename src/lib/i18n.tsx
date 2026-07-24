@@ -61,6 +61,9 @@ const EN: Record<string, string> = {
   "Filter anpassen.": "Adjust the filter.",
   "Filter zurücksetzen": "Reset filters",
   "Filter anpassen oder zurücksetzen.": "Adjust or reset the filters.",
+  "Pain-Point-Register": "Pain point register",
+  "Konsolidierte Übersichtstabelle aller Pain Points":
+    "Consolidated overview table of all pain points",
   "Noch keine Divisions": "No divisions yet",
   "Lege die erste Division an, z. B. „Product Service“.":
     "Create the first division, e.g. “Product Service”.",

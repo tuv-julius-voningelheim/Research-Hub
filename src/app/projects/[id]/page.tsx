@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useMemo, useState } from "react";
-import { byType, notesOf, slugIndex } from "@/lib/analytics";
+import { byType, notesOf, painPointRegister, slugIndex } from "@/lib/analytics";
 import { buildMarkdownReport, downloadTextFile } from "@/lib/export";
 import {
   EDITABLE_TYPES,
@@ -32,6 +32,7 @@ import NoteCard from "@/components/project/NoteCard";
 import NoteDrawer from "@/components/project/NoteDrawer";
 import Overview from "@/components/project/Overview";
 import UploadZone from "@/components/project/UploadZone";
+import Markdown from "@/components/Markdown";
 import { Card, EmptyState, StatusBadge } from "@/components/ui";
 import { FileIcon, OrgIcon, ProgramIcon, UsersIcon } from "@/components/icons";
 import { TypePill } from "@/components/project/NoteDrawer";
@@ -116,6 +117,66 @@ function FilesTab({ vault, onOpen }: { vault: Vault; onOpen: (n: Note) => void }
         </Card>
       ))}
     </div>
+  );
+}
+
+/** Collapsible view of the vault's pain-point register (consolidated table). */
+function RegisterCard({
+  note,
+  idx,
+  onOpen,
+}: {
+  note: Note;
+  idx: Map<string, Note>;
+  onOpen: (n: Note) => void;
+}) {
+  const { t } = useLang();
+  const [open, setOpen] = useState(false);
+  const body = note.body.replace(/^\s*#\s+[^\n]*\n/, ""); // drop leading H1
+  return (
+    <Card className="overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-neutral-50"
+      >
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-bold text-neutral-900">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0057b8" strokeWidth="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
+          </svg>
+          {t("Pain-Point-Register")}
+          <span className="font-medium text-neutral-400">
+            {t("Konsolidierte Übersichtstabelle aller Pain Points")}
+          </span>
+        </span>
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          className={`shrink-0 text-neutral-400 transition-transform ${open ? "rotate-180" : ""}`}
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+      {open && (
+        <div className="border-t border-neutral-100 px-4 py-3">
+          <Markdown
+            text={body}
+            resolve={(x) => idx.has(x.toLowerCase())}
+            onNavigate={(x) => {
+              const target = idx.get(x.toLowerCase());
+              if (target) onOpen(target);
+            }}
+            labelFor={(x) => idx.get(x.toLowerCase())?.title}
+          />
+        </div>
+      )}
+    </Card>
   );
 }
 
@@ -474,6 +535,13 @@ function ProjectDetail() {
                     ))}
                   </div>
                 )}
+                {tb.key === "pain-points" &&
+                  (() => {
+                    const reg = painPointRegister(vault);
+                    return reg ? (
+                      <RegisterCard note={reg} idx={idx} onOpen={openNoteFn} />
+                    ) : null;
+                  })()}
                 {hidden.length > 0 && (
                   <details className="rounded-xl bg-neutral-50 px-4 py-3 ring-1 ring-neutral-200">
                     <summary className="cursor-pointer text-xs font-semibold text-neutral-500">

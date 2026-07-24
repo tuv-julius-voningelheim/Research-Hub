@@ -61,6 +61,21 @@ export function slugIndex(vault: Vault | undefined): Map<string, Note> {
   return map;
 }
 
+/**
+ * The pain-point register — a consolidated table maintained in the vault
+ * (e.g. 03_pains/_register.md). Parsed as a working document (wiki), not a
+ * finding; surfaced separately under the Pain Points tab.
+ */
+export function painPointRegister(vault: Vault | undefined): Note | undefined {
+  if (!vault) return undefined;
+  const inPains = (n: Note) => /pain/i.test(`${n.folder} ${n.path}`);
+  return (
+    vault.notes.find(
+      (n) => n.type !== "pain-point" && /register/i.test(n.slug) && inPains(n)
+    ) ?? vault.notes.find((n) => /pain\s*point\s*register/i.test(n.title))
+  );
+}
+
 /** All notes linking TO the given slug. */
 export function backlinks(vault: Vault, slug: string): Note[] {
   const lower = slug.toLowerCase();
