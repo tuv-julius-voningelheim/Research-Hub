@@ -137,6 +137,7 @@ export type NoteType =
   | "need"
   | "insight"
   | "recommendation"
+  | "requirement"
   | "persona"
   | "method"
   | "template"

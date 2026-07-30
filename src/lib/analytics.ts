@@ -26,6 +26,7 @@ export function byType(vault: Vault | undefined): Record<NoteType, Note[]> {
     need: [],
     insight: [],
     recommendation: [],
+    requirement: [],
     persona: [],
     method: [],
     template: [],

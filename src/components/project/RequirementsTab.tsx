@@ -8,10 +8,19 @@ import { useMemo, useState } from "react";
 import { notesOf, recTraces } from "@/lib/analytics";
 import { useLang } from "@/lib/i18n";
 import { useHub } from "@/lib/store";
-import type { Project } from "@/lib/types";
+import type { Note, Project, Vault } from "@/lib/types";
 import { Card, SectionTitle, btnPrimary, btnSecondary, inputCls } from "@/components/ui";
+import NoteCard from "./NoteCard";
 
-export default function RequirementsTab({ project }: { project: Project }) {
+export default function RequirementsTab({
+  project,
+  vault,
+  onOpen,
+}: {
+  project: Project;
+  vault: Vault;
+  onOpen: (note: Note) => void;
+}) {
   const { addRequirement, toggleRequirement, removeRequirement, seedRequirements } =
     useHub();
   const { t } = useLang();
@@ -27,9 +36,23 @@ export default function RequirementsTab({ project }: { project: Project }) {
   const items = project.requirements ?? [];
   const open = items.filter((s) => !s.done);
   const done = items.filter((s) => s.done);
+  const sourceDocuments = notesOf(vault, "requirement");
 
   return (
     <div className="max-w-3xl space-y-4">
+      {sourceDocuments.length > 0 && (
+        <section>
+          <SectionTitle sub={t("Aus dem Research-Upload eingelesene Anforderungsdokumente.")}>
+            {t("Research Requirements")}
+          </SectionTitle>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {sourceDocuments.map((note) => (
+              <NoteCard key={note.path} note={note} onOpen={onOpen} />
+            ))}
+          </div>
+        </section>
+      )}
+
       <div className="flex flex-wrap items-end justify-between gap-3">
         <SectionTitle sub={t("Working File für das PDM-Team: Anforderungen aus der Research ableiten, priorisieren und abhaken. Einträge lassen sich aus Recommendations & Needs vorbefüllen.")}>
           MACE Requirements Checklist

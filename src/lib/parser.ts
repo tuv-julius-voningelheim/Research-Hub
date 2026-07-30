@@ -176,6 +176,10 @@ const TITLE_TYPE: [RegExp, NoteType][] = [
   [/^persona\s*:/i, "persona"],
 ];
 
+const FILE_TYPE: [RegExp, NoteType][] = [
+  [/(?:application-form-insights-and-requirements|appendix-abc-requirements)\.md$/i, "requirement"],
+];
+
 function classify(path: string, fm: Record<string, string>, body: string): NoteType {
   const parts = path.split("/");
   const folders = parts.slice(0, -1);
@@ -186,6 +190,9 @@ function classify(path: string, fm: Record<string, string>, body: string): NoteT
   // untyped meta/index files (_register.md, _status.md, …) are working
   // documents — keep them out of the findings and show them under Files
   if (parts[parts.length - 1].startsWith("_")) return "wiki";
+  for (const [re, type] of FILE_TYPE) {
+    if (re.test(path)) return type;
+  }
   // a note filed in the wrong folder (e.g. a theme inside 07_personas)
   // usually still announces its type in the H1 — trust that before the folder
   const h1 = body.match(/^#\s+(.+)$/m)?.[1]?.trim();

@@ -47,7 +47,7 @@ const TABS: { key: string; label: string; types: NoteType[] }[] = [
   { key: "personas", label: "Personas", types: ["persona"] },
   { key: "interviews", label: "Interviews", types: ["interview"] },
   { key: "context", label: "Kontext", types: [] },
-  { key: "requirements", label: "Requirements", types: [] },
+  { key: "requirements", label: "Requirements", types: ["requirement"] },
   { key: "notes", label: "Notizen", types: [] },
   { key: "files", label: "Files", types: [] },
 ];
@@ -404,7 +404,8 @@ function ProjectDetail() {
                   tb.key === "notes"
                     ? (project.nextSteps?.filter((s) => !s.done).length ?? 0)
                     : tb.key === "requirements"
-                      ? (project.requirements?.filter((s) => !s.done).length ?? 0)
+                      ? (project.requirements?.filter((s) => !s.done).length ?? 0) +
+                        types.requirement.length
                       : tb.key === "context"
                         ? (project.goals?.length ?? 0) + (project.reportBlocks?.length ?? 0)
                         : tb.types.length > 0
@@ -476,7 +477,9 @@ function ProjectDetail() {
             </div>
           )}
           {tab === "context" && <ContextTab project={project} />}
-          {tab === "requirements" && <RequirementsTab project={project} />}
+          {tab === "requirements" && (
+            <RequirementsTab project={project} vault={vault} onOpen={openNoteFn} />
+          )}
           {tab === "notes" && <NotesTab project={project} />}
           {tab === "files" && (
             <div className="space-y-4">
@@ -485,7 +488,11 @@ function ProjectDetail() {
             </div>
           )}
           {TABS.filter(
-            (tb) => tb.types.length > 0 && tb.key !== "insights-recs" && tb.key !== "interviews"
+            (tb) =>
+              tb.types.length > 0 &&
+              tb.key !== "insights-recs" &&
+              tb.key !== "interviews" &&
+              tb.key !== "requirements"
           ).map((tb) => {
             if (tab !== tb.key) return null;
             const allNotes = tb.types.flatMap((ty) => types[ty]);

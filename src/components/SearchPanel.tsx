@@ -19,6 +19,7 @@ const TYPE_FILTERS: (NoteType | "all")[] = [
   "need",
   "insight",
   "recommendation",
+  "requirement",
   "persona",
   "interview",
 ];

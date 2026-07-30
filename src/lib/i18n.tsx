@@ -213,6 +213,9 @@ const EN: Record<string, string> = {
     "Observations, decisions, context for the team…",
 
   // requirements tab
+  "Research Requirements": "Research requirements",
+  "Aus dem Research-Upload eingelesene Anforderungsdokumente.":
+    "Requirement documents imported from the research upload.",
   "Working File für das PDM-Team: Anforderungen aus der Research ableiten, priorisieren und abhaken. Einträge lassen sich aus Recommendations & Needs vorbefüllen.":
     "Working file for the PDM team: derive requirements from research, prioritise and check them off. Entries can be pre-filled from recommendations & needs.",
   "Aus Recommendations & Needs befüllen": "Fill from recommendations & needs",
