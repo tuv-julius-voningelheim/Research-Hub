@@ -22,6 +22,7 @@ import { effectiveVault } from "@/lib/editable";
 import { LangToggle, useLang } from "@/lib/i18n";
 import { divisionOf, programOf, useHub } from "@/lib/store";
 import type { Note, ReportBlock, ReportPlacement } from "@/lib/types";
+import Markdown from "@/components/Markdown";
 import RichContent from "@/components/RichContent";
 import { btnPrimary } from "@/components/ui";
 
@@ -51,7 +52,7 @@ const SECTIONS: { key: string; label: string; default: boolean }[] = [
   { key: "personas", label: "Personas", default: false },
   { key: "interviews", label: "Interviews", default: false },
   { key: "questions", label: "Offene Fragen", default: true },
-  { key: "requirements", label: "Requirements", default: false },
+  { key: "requirements", label: "Requirements", default: true },
   { key: "notes", label: "Next Steps & Notizen", default: true },
 ];
 
@@ -131,6 +132,7 @@ export default function ReportPage() {
   const interviews = vault ? notesOf(vault, "interview") : [];
   const needs = vault ? notesOf(vault, "need") : [];
   const insights = vault ? notesOf(vault, "insight") : [];
+  const requirementDocuments = vault ? notesOf(vault, "requirement") : [];
   const personas = vault ? notesOf(vault, "persona") : [];
 
   return (
@@ -513,27 +515,43 @@ export default function ReportPage() {
               </section>
             )}
 
-            {on.requirements && (project.requirements?.length ?? 0) > 0 && (
-              <section className="mt-10 break-inside-avoid">
-                <SectionH2>Requirements Checklist</SectionH2>
-                {project.requirements!.map((r) => (
-                  <div key={r.id} className="flex items-center gap-2 text-sm text-neutral-700">
-                    <span
-                      className={`flex h-3.5 w-3.5 items-center justify-center rounded border text-[9px] ${
-                        r.done
-                          ? "border-emerald-500 bg-emerald-500 text-white"
-                          : "border-neutral-300"
-                      }`}
-                    >
-                      {r.done ? "✓" : ""}
-                    </span>
-                    <span className={r.done ? "text-neutral-400 line-through" : ""}>
-                      {r.text.replace(/^\[(Rec|Need)\]\s*/, "")}
-                    </span>
-                  </div>
-                ))}
-              </section>
-            )}
+            {on.requirements &&
+              (requirementDocuments.length > 0 || (project.requirements?.length ?? 0) > 0) && (
+                <section className="mt-10">
+                  <SectionH2>Requirements</SectionH2>
+                  {requirementDocuments.map((note) => (
+                    <article key={note.slug} className="mb-8">
+                      <h3 className="mb-2 text-base font-bold text-neutral-900">
+                        {note.title}
+                      </h3>
+                      <Markdown text={note.body.replace(/^\s*#\s+[^\n]*\n/, "")} />
+                    </article>
+                  ))}
+                  {(project.requirements?.length ?? 0) > 0 && (
+                    <div className="break-inside-avoid">
+                      <h3 className="mb-2 text-base font-bold text-neutral-900">
+                        Requirements Checklist
+                      </h3>
+                      {project.requirements!.map((r) => (
+                        <div key={r.id} className="flex items-center gap-2 text-sm text-neutral-700">
+                          <span
+                            className={`flex h-3.5 w-3.5 items-center justify-center rounded border text-[9px] ${
+                              r.done
+                                ? "border-emerald-500 bg-emerald-500 text-white"
+                                : "border-neutral-300"
+                            }`}
+                          >
+                            {r.done ? "✓" : ""}
+                          </span>
+                          <span className={r.done ? "text-neutral-400 line-through" : ""}>
+                            {r.text.replace(/^\[(Rec|Need)\]\s*/, "")}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              )}
 
             {on.notes && (project.nextSteps?.length || project.notes?.trim()) ? (
               <section className="mt-10 break-inside-avoid">

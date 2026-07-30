@@ -106,6 +106,7 @@ export function buildMarkdownReport(
   const needs = notesOf(vault, "need");
   const insights = notesOf(vault, "insight");
   const recs = recTraces(vault);
+  const requirementDocuments = notesOf(vault, "requirement");
   const personas = notesOf(vault, "persona");
   const hidden = project.hiddenQuestions ?? [];
   const questions = openQuestions(vault).filter((q) => !hidden.includes(q.question));
@@ -319,6 +320,17 @@ export function buildMarkdownReport(
   }
 
   // ---- requirements ----
+  if (requirementDocuments.length) {
+    push("## Research Requirements");
+    push();
+    for (const n of requirementDocuments) {
+      push(`### ${n.title}`);
+      push();
+      push(n.body.replace(/^\s*#\s+[^\n]*\n/, "").trim());
+      push();
+    }
+  }
+
   if (project.requirements?.length) {
     push("## Requirements Checklist");
     push();
