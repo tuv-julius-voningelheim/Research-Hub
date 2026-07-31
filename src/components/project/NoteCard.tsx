@@ -3,7 +3,7 @@
 // Compact card for a note in a tab list — type-aware summary line,
 // badges and the first representative quote.
 
-import { interviewMeta } from "@/lib/analytics";
+import { interviewMeta, positivePatternQuality } from "@/lib/analytics";
 import { useLang } from "@/lib/i18n";
 import {
   categoryOf,
@@ -57,6 +57,8 @@ export default function NoteCard({
   const isStarredQuote = !!(quote && starred?.includes(quoteKey(quote.text)));
   const kategorie = categoryOf(note);
   const meta = note.type === "interview" ? interviewMeta(note) : undefined;
+  const patternQuality =
+    note.type === "positive-pattern" ? positivePatternQuality(note) : undefined;
 
   return (
     <Card className="flex h-full flex-col p-4 transition-shadow hover:shadow-md">
@@ -131,10 +133,17 @@ export default function NoteCard({
       <div className="mt-3 flex items-center justify-between border-t border-neutral-100 pt-2.5 text-xs text-neutral-400">
         <span>
           {note.quotes.length > 0 && `${note.quotes.length} ${t("Zitate")}`}
+          {patternQuality &&
+            `${note.quotes.length > 0 ? " · " : ""}${patternQuality.distinctSources} ${t("Interviewquellen")}`}
           {note.quotes.length > 0 && note.links.length > 0 && " · "}
           {note.links.length > 0 && `${note.links.length} ${t("Verknüpfungen")}`}
         </span>
         <div className="flex items-center gap-2.5">
+          {patternQuality?.needsReview && (
+            <span className="rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-800 ring-1 ring-amber-200">
+              {t("Evidenz prüfen")}
+            </span>
+          )}
           {onEdit && (
             <button
               type="button"

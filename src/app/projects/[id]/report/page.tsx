@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
+  PRIORITY_SHORTLIST_LIMIT,
   interviewMeta,
   notesOf,
   openQuestions,
@@ -272,7 +273,7 @@ export default function ReportPage() {
                   {t("Rangiert nach Severity × Confidence × Evidenz")}
                 </p>
                 <ol className="space-y-2.5">
-                  {ranked.slice(0, 10).map((r, i) => (
+                  {ranked.slice(0, PRIORITY_SHORTLIST_LIMIT).map((r, i) => (
                     <li key={r.note.slug} className="flex items-start gap-3">
                       <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-[11px] font-bold text-white">
                         {i + 1}

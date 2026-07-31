@@ -112,6 +112,13 @@ const EN: Record<string, string> = {
   "Manuell": "Manual",
   "Bearbeitet": "Edited",
   "Zitate": "quotes",
+  "Interviewquellen": "interview sources",
+  "Evidenz prüfen": "Review evidence",
+  "Pattern-Evidenz": "Pattern evidence",
+  "Pattern-Evidenz prüfen": "Review pattern evidence",
+  "Zitate ohne Interviewquelle": "quotes without an interview source",
+  "Ein Positive Pattern braucht direkte Belege von mindestens zwei verschiedenen Interviewpersonen. Jedes Zitat muss dasselbe positive Muster stützen; problemorientierte Aussagen gehören zu einem Pain Point.":
+    "A positive pattern needs direct evidence from at least two different interview participants. Every quote must support the same positive pattern; problem-focused statements belong to a pain point.",
   "Verknüpfungen": "links",
   "Bearbeiten": "Edit",
   "Ausblenden": "Hide",

@@ -13,6 +13,8 @@ import {
   type Vault,
 } from "./types";
 
+export const PRIORITY_SHORTLIST_LIMIT = 7;
+
 export function notesOf(vault: Vault | undefined, type: NoteType): Note[] {
   return vault?.notes.filter((n) => n.type === type) ?? [];
 }
@@ -95,23 +97,51 @@ export interface RankedPainPoint {
   score: number;
 }
 
+function sourceIds(value: string): string[] {
+  return value.match(/[A-Za-z]+[-_]?\d+/g)?.map((id) => id.toUpperCase()) ?? [];
+}
+
+export function distinctEvidenceSources(n: Note): string[] {
+  const declared =
+    n.frontmatter["interview_ids"] || n.fields["Interview IDs"] || "";
+  const declaredIds = sourceIds(declared);
+  if (declaredIds.length > 0) return [...new Set(declaredIds)];
+
+  const quoteSources = n.quotes.flatMap((quote) => {
+    if (!quote.source?.trim()) return [];
+    const ids = sourceIds(quote.source);
+    return ids.length > 0 ? ids : [quote.source.trim().toUpperCase()];
+  });
+  return [...new Set(quoteSources)];
+}
+
+export function positivePatternQuality(n: Note): {
+  distinctSources: number;
+  quoteCount: number;
+  unattributedQuotes: number;
+  needsReview: boolean;
+} {
+  const distinctSources = distinctEvidenceSources(n).length;
+  const unattributedQuotes = n.quotes.filter((quote) => !quote.source?.trim()).length;
+  return {
+    distinctSources,
+    quoteCount: n.quotes.length,
+    unattributedQuotes,
+    needsReview: distinctSources < 2 || unattributedQuotes > 0,
+  };
+}
+
 function evidenceCount(n: Note): number {
   // the evidence unit is DISTINCT INTERVIEWS — newer exports carry an
   // interview_ids list, while evidence_count there counts quotes and would
   // overstate the evidence (e.g. 14 quotes from 8 interviews)
-  const ids =
-    n.frontmatter["interview_ids"] || n.fields["Interview IDs"] || "";
-  const idMatches = ids.match(/[A-Za-z]+[-_]?\d+/g);
-  if (idMatches?.length) {
-    return new Set(idMatches.map((s) => s.toUpperCase())).size;
-  }
+  const sources = distinctEvidenceSources(n);
+  if (sources.length > 0) return sources.length;
   const f =
     n.fields["Evidence Count"] || n.frontmatter["evidence_count"] || "";
   const m = f.match(/\d+/);
   if (m) return parseInt(m[0], 10);
-  // fall back to distinct quote sources
-  const sources = new Set(n.quotes.map((q) => q.source).filter(Boolean));
-  return sources.size || (n.quotes.length ? 1 : 0);
+  return n.quotes.length ? 1 : 0;
 }
 
 export function rankPainPoints(vault: Vault | undefined): RankedPainPoint[] {

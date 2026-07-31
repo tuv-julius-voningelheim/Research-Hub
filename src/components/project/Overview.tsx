@@ -8,6 +8,7 @@ import { Fragment, useMemo, useState } from "react";
 import {
   MATRIX_CONFIDENCES,
   MATRIX_SEVERITIES,
+  PRIORITY_SHORTLIST_LIMIT,
   byType,
   confidenceDistribution,
   needCategoryDistribution,
@@ -246,7 +247,7 @@ export default function Overview({
             </span>
           </div>
           <div className="space-y-2">
-            {ranked.slice(0, 7).map((r, i) => (
+            {ranked.slice(0, PRIORITY_SHORTLIST_LIMIT).map((r, i) => (
               <button
                 key={r.note.slug}
                 type="button"

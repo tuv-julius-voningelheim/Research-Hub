@@ -4,6 +4,7 @@
 // and notes. Curated "killer quotes" are preferred.
 
 import {
+  PRIORITY_SHORTLIST_LIMIT,
   interviewMeta,
   notesOf,
   openQuestions,
@@ -131,7 +132,7 @@ export function buildMarkdownReport(
   if (ranked.length) {
     push("## Priority Shortlist (Severity × Confidence × Evidenz)");
     push();
-    ranked.slice(0, 10).forEach((r, i) => {
+    ranked.slice(0, PRIORITY_SHORTLIST_LIMIT).forEach((r, i) => {
       push(
         `${i + 1}. **${r.note.title}** — Severity ${cap(r.severity)}, Confidence ${cap(r.confidence)}, Evidenz aus ${r.evidence} Interview(s)`
       );

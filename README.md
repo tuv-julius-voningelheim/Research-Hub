@@ -31,6 +31,13 @@ und die Frontmatter der Notizen (`typ`, `confidence`, `severity`, `priority`, �
 - `[[Wikilinks]]` werden aufgelöst und navigierbar, Backlinks werden angezeigt
 - Offene Fragen & Research Gaps werden vault-weit eingesammelt
 
+## Copilot-Instructions für die Research-Synthese
+
+Für verständliche, konsistente Datenräume und belastbare Patterns steht eine
+wiederverwendbare Anweisung bereit: [RESEARCH_SYNTHESIS_INSTRUCTIONS.md](RESEARCH_SYNTHESIS_INSTRUCTIONS.md).
+Sie sollte dem Copiloten bei jeder neuen Research-Synthese als verbindliche
+Arbeitsanweisung mitgegeben werden.
+
 ## Entwicklung
 
 ```bash

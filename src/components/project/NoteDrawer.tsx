@@ -6,7 +6,7 @@
 import { useEffect, useMemo } from "react";
 import Markdown from "@/components/Markdown";
 import { useLang } from "@/lib/i18n";
-import { backlinks, slugIndex } from "@/lib/analytics";
+import { backlinks, positivePatternQuality, slugIndex } from "@/lib/analytics";
 import {
   categoryOf,
   confidenceOf,
@@ -100,6 +100,8 @@ export default function NoteDrawer({
   }, [onClose]);
 
   const fm = note.frontmatter;
+  const patternQuality =
+    note.type === "positive-pattern" ? positivePatternQuality(note) : undefined;
 
   return (
     <div className="fixed inset-0 z-50" role="dialog" aria-modal="true">
@@ -172,6 +174,33 @@ export default function NoteDrawer({
 
         {/* body */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
+          {patternQuality && (
+            <div
+              className={`mb-4 rounded-xl border p-3 text-sm ${
+                patternQuality.needsReview
+                  ? "border-amber-200 bg-amber-50 text-amber-950"
+                  : "border-blue-100 bg-blue-50/60 text-neutral-700"
+              }`}
+            >
+              <div className="font-bold">
+                {patternQuality.needsReview
+                  ? t("Pattern-Evidenz prüfen")
+                  : t("Pattern-Evidenz")}
+              </div>
+              <p className="mt-1 leading-relaxed">
+                {patternQuality.distinctSources} {t("Interviewquellen")} ·{" "}
+                {patternQuality.quoteCount} {t("Zitate")}.{" "}
+                {t(
+                  "Ein Positive Pattern braucht direkte Belege von mindestens zwei verschiedenen Interviewpersonen. Jedes Zitat muss dasselbe positive Muster stützen; problemorientierte Aussagen gehören zu einem Pain Point."
+                )}
+              </p>
+              {patternQuality.unattributedQuotes > 0 && (
+                <p className="mt-1 font-semibold">
+                  {patternQuality.unattributedQuotes} {t("Zitate ohne Interviewquelle")}
+                </p>
+              )}
+            </div>
+          )}
           {note.type === "archive" ? (
             <pre className="whitespace-pre-wrap font-sans text-[0.85rem] leading-relaxed text-neutral-700">
               {note.body}
