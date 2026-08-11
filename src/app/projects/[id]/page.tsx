@@ -39,7 +39,7 @@ import { TypePill } from "@/components/project/NoteDrawer";
 
 const TABS: { key: string; label: string; types: NoteType[] }[] = [
   { key: "overview", label: "Overview", types: [] },
-  { key: "insights-recs", label: "Insights & Recs", types: ["insight", "recommendation"] },
+  { key: "insights-recs", label: "Insights", types: ["insight"] },
   { key: "themes", label: "Themes", types: ["theme"] },
   { key: "pain-points", label: "Pain Points", types: ["pain-point"] },
   { key: "positives", label: "Positives", types: ["positive-pattern"] },
@@ -458,13 +458,6 @@ function ProjectDetail() {
                   onClick={() => setEditor({ mode: "new", type: "insight" })}
                 >
                   + Insight
-                </button>
-                <button
-                  type="button"
-                  className={btnSecondary}
-                  onClick={() => setEditor({ mode: "new", type: "recommendation" })}
-                >
-                  + Recommendation
                 </button>
               </div>
               <InsightsRecsTab

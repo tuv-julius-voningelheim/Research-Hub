@@ -6,7 +6,7 @@
 
 import { useMemo } from "react";
 import { useLang } from "@/lib/i18n";
-import { notesOf, recTraces } from "@/lib/analytics";
+import { notesOf } from "@/lib/analytics";
 import type { Note, Vault } from "@/lib/types";
 import NoteCard from "./NoteCard";
 
@@ -47,7 +47,6 @@ export default function InsightsRecsTab({
 }) {
   const { t } = useLang();
   const insights = useMemo(() => notesOf(vault, "insight"), [vault]);
-  const recs = useMemo(() => recTraces(vault), [vault]);
 
   return (
     <div className="space-y-8">
@@ -67,39 +66,6 @@ export default function InsightsRecsTab({
               onEdit={onEdit}
               onDelete={onDelete}
             />
-          ))}
-        </div>
-      </section>
-
-      <section>
-        <SectionIntro
-          title="Recommendations"
-          count={recs.length}
-          desc={t("Konkrete Handlungsempfehlungen — jede ist an genau ein Anker-Insight verankert, damit die Begründung bis zum Originalzitat nachvollziehbar bleibt.")}
-        />
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {recs.map((r) => (
-            <div key={r.note.path} className="flex flex-col">
-              <NoteCard
-                note={r.note}
-                onOpen={onOpen}
-                starred={starredQuotes?.[r.note.slug]}
-                onEdit={onEdit}
-                onDelete={onDelete}
-              />
-              {r.anchorInsight && (
-                <button
-                  type="button"
-                  onClick={() => onOpen(r.anchorInsight!)}
-                  className="-mt-1 flex cursor-pointer items-center gap-2 rounded-b-xl border border-t-0 border-emerald-100 bg-emerald-50/60 px-4 py-2 text-left text-xs font-semibold text-emerald-800 transition-colors hover:bg-emerald-100/60"
-                >
-                  <span className="shrink-0 rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold uppercase text-white">
-                    {t("Anker")}
-                  </span>
-                  <span className="truncate">{r.anchorInsight.title}</span>
-                </button>
-              )}
-            </div>
           ))}
         </div>
       </section>
