@@ -116,6 +116,8 @@ export interface ShareLink {
   targetId?: string;
   /** legacy field (early links were project-only) */
   projectId?: string;
+  /** when true, "Offene Fragen & Research Gaps" are stripped server-side and never transferred to the shared view */
+  hideQuestions?: boolean;
   createdAt: number;
 }
 

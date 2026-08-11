@@ -26,6 +26,7 @@ export default function ShareModal({
   const { state, createShare, removeShare } = useHub();
   const { t, tf } = useLang();
   const [copied, setCopied] = useState<string | null>(null);
+  const [hideQuestions, setHideQuestions] = useState(false);
 
   const shares = (state.shares ?? []).filter(
     (s) => shareKindOf(s) === kind && shareTargetOf(s) === targetId
@@ -53,6 +54,14 @@ export default function ShareModal({
                   value={url}
                   onFocus={(e) => e.target.select()}
                 />
+                {s.hideQuestions && (
+                  <span
+                    title={t("Offene Fragen & Research Gaps werden nicht geteilt")}
+                    className="shrink-0 rounded-md bg-neutral-100 px-1.5 py-1 text-[0.65rem] font-semibold text-neutral-500 ring-1 ring-neutral-200"
+                  >
+                    {t("ohne offene Fragen")}
+                  </span>
+                )}
                 <button
                   type="button"
                   className={btnSecondary}
@@ -80,11 +89,21 @@ export default function ShareModal({
         </ul>
       )}
 
+      <label className="mb-3 flex cursor-pointer items-start gap-2.5 rounded-lg bg-neutral-50 px-3 py-2.5 text-sm text-neutral-700 ring-1 ring-neutral-200">
+        <input
+          type="checkbox"
+          checked={hideQuestions}
+          onChange={(e) => setHideQuestions(e.target.checked)}
+          className="mt-0.5 h-4 w-4 cursor-pointer accent-[#0057b8]"
+        />
+        <span>{t("Offene Fragen & Research Gaps nicht mit teilen")}</span>
+      </label>
+
       <button
         type="button"
         className={`w-full ${btnPrimary}`}
         onClick={async () => {
-          const share = createShare(kind, targetId);
+          const share = createShare(kind, targetId, { hideQuestions });
           const url = `${window.location.origin}/share/${share.token}`;
           await navigator.clipboard.writeText(url).catch(() => {});
           setCopied(share.token);

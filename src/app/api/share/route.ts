@@ -10,9 +10,46 @@ import {
   storeMode,
 } from "@/lib/dataStore";
 import { effectiveVault } from "@/lib/editable";
-import type { Project, Vault } from "@/lib/types";
+import type { Note, Project, Vault } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+
+// headings that hold open questions / research gaps (mirrors analytics.openQuestions)
+const QUESTIONS_RE = /offene fragen|research gaps|open questions/i;
+
+/** remove a level-2 markdown section from a raw note body (mirrors parser.extractSections) */
+function stripQuestionSectionsFromBody(body: string): string {
+  const parts = body.split(/^##\s+/m);
+  const kept: string[] = [parts[0]];
+  for (let i = 1; i < parts.length; i++) {
+    const nl = parts[i].indexOf("\n");
+    const heading = (nl === -1 ? parts[i] : parts[i].slice(0, nl)).trim();
+    if (QUESTIONS_RE.test(heading)) continue;
+    kept.push("## " + parts[i]);
+  }
+  return kept.join("");
+}
+
+/** drop open-questions/research-gaps content so it is never transferred to a share link */
+function stripOpenQuestions(vault: Vault | null): Vault | null {
+  if (!vault) return vault;
+  return {
+    ...vault,
+    notes: vault.notes.map((n: Note) => {
+      let touched = false;
+      const sections: Record<string, string> = {};
+      for (const [heading, content] of Object.entries(n.sections)) {
+        if (QUESTIONS_RE.test(heading)) {
+          touched = true;
+          continue;
+        }
+        sections[heading] = content;
+      }
+      if (!touched) return n;
+      return { ...n, sections, body: stripQuestionSectionsFromBody(n.body) };
+    }),
+  };
+}
 
 interface StoredProject {
   id: string;
@@ -37,6 +74,7 @@ interface StoredState {
     kind?: "project" | "program" | "division";
     targetId?: string;
     projectId?: string;
+    hideQuestions?: boolean;
   }[];
   projects?: StoredProject[];
   programs?: { id: string; name: string; divisionId: string }[];
@@ -123,8 +161,10 @@ export async function GET(req: Request) {
         ? ((await readVault(p.id)) as Vault | null)
         : null;
       // apply manual edits / manual notes / soft-hides server-side
-      const vault =
+      let vault =
         effectiveVault({ ...(p as unknown as Project), vault: rawVault ?? undefined }) ?? null;
+      // optionally never transfer open questions / research gaps
+      if (share.hideQuestions) vault = stripOpenQuestions(vault);
       return {
         id: p.id,
         name: p.name,

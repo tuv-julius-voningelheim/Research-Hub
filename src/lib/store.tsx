@@ -111,7 +111,11 @@ interface HubContextValue {
   addReportBlock: (projectId: string, placement: ReportPlacement) => void;
   updateReportBlock: (projectId: string, id: string, patch: Partial<ReportBlock>) => void;
   removeReportBlock: (projectId: string, id: string) => void;
-  createShare: (kind: "project" | "program" | "division", targetId: string) => ShareLink;
+  createShare: (
+    kind: "project" | "program" | "division",
+    targetId: string,
+    opts?: { hideQuestions?: boolean }
+  ) => ShareLink;
   removeShare: (token: string) => void;
 }
 
@@ -884,12 +888,17 @@ export function HubProvider({ children }: { children: ReactNode }) {
   );
 
   const createShare = useCallback(
-    (kind: "project" | "program" | "division", targetId: string) => {
+    (
+      kind: "project" | "program" | "division",
+      targetId: string,
+      opts?: { hideQuestions?: boolean }
+    ) => {
       const share: ShareLink = {
         token: uid() + uid(),
         kind,
         targetId,
         createdAt: Date.now(),
+        ...(opts?.hideQuestions ? { hideQuestions: true } : {}),
       };
       const s = stateRef.current;
       persist({ ...s, shares: [...(s.shares ?? []), share] });

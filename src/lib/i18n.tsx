@@ -293,6 +293,11 @@ const EN: Record<string, string> = {
   "Kopiert ✓": "Copied ✓",
   "Kopieren": "Copy",
   "Link widerrufen": "Revoke link",
+  "Offene Fragen & Research Gaps nicht mit teilen":
+    "Don't share open questions & research gaps",
+  "Offene Fragen & Research Gaps werden nicht geteilt":
+    "Open questions & research gaps are not shared",
+  "ohne offene Fragen": "no open questions",
   "+ Neuen Link erstellen (wird kopiert)": "+ Create new link (copied)",
 
   // search
