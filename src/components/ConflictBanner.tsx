@@ -42,9 +42,54 @@ export default function ConflictBanner() {
     storageDown,
     serverEmptyLocalData,
     restoreToServer,
+    unpublishedChanges,
+    publishLocalChanges,
+    discardLocalChanges,
   } = useHub();
   const { t } = useLang();
   const [busy, setBusy] = useState(false);
+
+  if (unpublishedChanges) {
+    return (
+      <Banner
+        tone="blue"
+        icon={
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" strokeWidth="2">
+            <path d="M12 3v12M7 8l5-5 5 5M5 21h14" />
+          </svg>
+        }
+        text={t("Du hast lokale Änderungen, die noch nicht im geteilten Workspace sind.")}
+        action={
+          <div className="flex shrink-0 gap-2">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                await publishLocalChanges();
+                setBusy(false);
+              }}
+              className="cursor-pointer rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+            >
+              {busy ? t("Veröffentliche…") : t("Veröffentlichen")}
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                await discardLocalChanges();
+                setBusy(false);
+              }}
+              className="cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold text-blue-900 ring-1 ring-blue-300 transition-colors hover:bg-blue-100 disabled:opacity-50"
+            >
+              {t("Verwerfen")}
+            </button>
+          </div>
+        }
+      />
+    );
+  }
 
   if (serverEmptyLocalData) {
     return (

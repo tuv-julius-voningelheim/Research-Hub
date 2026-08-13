@@ -38,6 +38,11 @@ const EN: Record<string, string> = {
     "The workspace was changed by someone else.",
   "Lade…": "Loading…",
   "Neu laden": "Reload",
+  "Du hast lokale Änderungen, die noch nicht im geteilten Workspace sind.":
+    "You have local changes that are not in the shared workspace yet.",
+  "Veröffentlichen": "Publish",
+  "Veröffentliche…": "Publishing…",
+  "Verwerfen": "Discard",
 
   // login
   "Passwort": "Password",

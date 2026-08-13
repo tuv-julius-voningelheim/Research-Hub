@@ -36,6 +36,10 @@ import type {
 import { extractEditable } from "./editable";
 
 const DB_KEY = "tuv-research-hub-v1";
+// set whenever edits are made that have not been confirmed on the server
+// (local mode, storage down, failed push). Survives reloads so a browser that
+// edited while disconnected can offer to publish once it reconnects.
+const DIRTY_KEY = "tuv-research-hub-dirty-v1";
 // gentle polling: focus refresh covers the common case; the interval is a
 // safety net. Keep it long — every check costs blob operations (quota!).
 const REFRESH_INTERVAL_MS = 300_000;
@@ -62,6 +66,12 @@ interface HubContextValue {
   storageDown: boolean;
   /** server workspace is empty but this browser has cached data */
   serverEmptyLocalData: boolean;
+  /** reconnected to a non-empty server while holding unpushed local edits */
+  unpublishedChanges: boolean;
+  /** merge the local edits into the shared workspace and push them up */
+  publishLocalChanges: () => Promise<void>;
+  /** drop the local edits and load the current shared workspace */
+  discardLocalChanges: () => Promise<void>;
   restoreToServer: () => Promise<void>;
   reloadShared: () => Promise<void>;
   addDivision: (name: string, description?: string) => Division;
@@ -147,6 +157,36 @@ function isEmptyState(s: HubState | null | undefined): boolean {
   );
 }
 
+/**
+ * Non-destructive union of a server state and a local state, keyed by id.
+ * Server-only entities are always kept (never delete someone else's data);
+ * for ids present on both sides the local version wins (that is what the user
+ * is publishing). Used when a browser reconnects with unpushed local edits.
+ */
+function mergeStates(server: HubState, local: HubState): HubState {
+  const byId = <T extends { id: string }>(base: T[], overlay: T[]): T[] => {
+    const map = new Map<string, T>();
+    for (const item of base) map.set(item.id, item);
+    for (const item of overlay) map.set(item.id, item);
+    return [...map.values()];
+  };
+  const shareById = (
+    base: ShareLink[],
+    overlay: ShareLink[]
+  ): ShareLink[] => {
+    const map = new Map<string, ShareLink>();
+    for (const s of base) map.set(s.token, s);
+    for (const s of overlay) map.set(s.token, s);
+    return [...map.values()];
+  };
+  return {
+    divisions: byId(server.divisions, local.divisions),
+    programs: byId(server.programs, local.programs),
+    projects: byId(server.projects, local.projects),
+    shares: shareById(server.shares ?? [], local.shares ?? []),
+  };
+}
+
 async function fetchSharedState(): Promise<
   { rev: number; state: HubState } | "down" | null
 > {
@@ -188,29 +228,44 @@ export function HubProvider({ children }: { children: ReactNode }) {
   const [conflict, setConflict] = useState(false);
   const [storageDown, setStorageDown] = useState(false);
   const [serverEmptyLocalData, setServerEmptyLocalData] = useState(false);
+  const [unpublishedChanges, setUnpublishedChanges] = useState(false);
 
   const stateRef = useRef(state);
   const modeRef = useRef(mode);
   const conflictRef = useRef(conflict);
+  const unpublishedRef = useRef(unpublishedChanges);
   const revRef = useRef(0);
   const pendingRef = useRef(false);
   const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   stateRef.current = state;
   modeRef.current = mode;
   conflictRef.current = conflict;
+  unpublishedRef.current = unpublishedChanges;
 
-  const applyShared = useCallback((rev: number, loaded: HubState) => {
-    revRef.current = rev;
-    stateRef.current = loaded;
-    setState(loaded);
-    void set(DB_KEY, loaded);
+  // persist a dirty marker so a browser that edited while disconnected still
+  // knows it has unpushed changes after a reload
+  const markDirty = useCallback((dirty: boolean) => {
+    void set(DIRTY_KEY, dirty);
   }, []);
+
+  const applyShared = useCallback(
+    (rev: number, loaded: HubState) => {
+      revRef.current = rev;
+      stateRef.current = loaded;
+      setState(loaded);
+      void set(DB_KEY, loaded);
+      // we are now in sync with the server — no unpushed local edits
+      markDirty(false);
+    },
+    [markDirty]
+  );
 
   // initial load: try shared workspace first, fall back to IndexedDB
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const saved = await get<HubState>(DB_KEY);
+      const dirty = (await get<boolean>(DIRTY_KEY)) ?? false;
       try {
         const shared = await fetchSharedState();
         if (cancelled) return;
@@ -233,6 +288,18 @@ export function HubProvider({ children }: { children: ReactNode }) {
             stateRef.current = saved;
             setState(saved);
             setServerEmptyLocalData(true);
+            setMode("shared");
+            setReady(true);
+            return;
+          }
+          // reconnected to a non-empty server while this browser holds edits
+          // made offline: keep the local state and offer to publish instead of
+          // silently overwriting it with the server copy
+          if (dirty && saved && !isEmptyState(saved)) {
+            revRef.current = shared.rev;
+            stateRef.current = saved;
+            setState(saved);
+            setUnpublishedChanges(true);
             setMode("shared");
             setReady(true);
             return;
@@ -260,6 +327,8 @@ export function HubProvider({ children }: { children: ReactNode }) {
 
   const reloadShared = useCallback(async () => {
     if (modeRef.current !== "shared") return;
+    // never overwrite local edits that are waiting to be published
+    if (unpublishedRef.current) return;
     try {
       const shared = await fetchSharedState();
       if (shared === "down") {
@@ -292,6 +361,8 @@ export function HubProvider({ children }: { children: ReactNode }) {
       // and don't burn blob quota while the tab is in the background
       if (document.visibilityState === "hidden") return;
       if (pendingRef.current || conflictRef.current) return;
+      // don't clobber local edits waiting to be published
+      if (unpublishedRef.current) return;
       try {
         const res = await fetch("/api/state", { cache: "no-store" });
         if (!res.ok) return;
@@ -337,11 +408,14 @@ export function HubProvider({ children }: { children: ReactNode }) {
           const data = await res.json();
           if (typeof data.rev === "number") revRef.current = data.rev;
           setSyncError(false);
+          markDirty(false);
         } else {
           setSyncError(true);
+          markDirty(true);
         }
       } catch {
         setSyncError(true);
+        markDirty(true);
       } finally {
         pendingRef.current = false;
       }
@@ -351,14 +425,20 @@ export function HubProvider({ children }: { children: ReactNode }) {
     void p.finally(() => {
       if (inFlightRef.current === p) inFlightRef.current = null;
     });
-  }, []);
+  }, [markDirty]);
 
   const pushStructure = useCallback(() => {
     if (modeRef.current !== "shared") return;
+    // while unpublished local edits are pending resolution, keep buffering
+    // them locally instead of racing them to the server
+    if (unpublishedRef.current) {
+      markDirty(true);
+      return;
+    }
     pendingRef.current = true;
     if (pushTimer.current) clearTimeout(pushTimer.current);
     pushTimer.current = setTimeout(doPush, 600);
-  }, [doPush]);
+  }, [doPush, markDirty]);
 
   // flush a pending write immediately when the tab is hidden / navigated away,
   // so edits made moments before leaving aren't lost with the debounce timer
@@ -407,11 +487,12 @@ export function HubProvider({ children }: { children: ReactNode }) {
       setServerEmptyLocalData(false);
       setStorageDown(false);
       setSyncError(false);
+      markDirty(false);
       setMode("shared");
     } catch {
       setSyncError(true);
     }
-  }, []);
+  }, [markDirty]);
 
   const persist = useCallback(
     (next: HubState) => {
@@ -420,27 +501,37 @@ export function HubProvider({ children }: { children: ReactNode }) {
       stateRef.current = next;
       setState(next);
       void set(DB_KEY, next);
+      // edits made while not connected to the shared store are unpublished
+      if (modeRef.current !== "shared" || unpublishedRef.current) markDirty(true);
       pushStructure();
     },
-    [pushStructure]
+    [pushStructure, markDirty]
   );
 
-  const pushVault = useCallback(async (projectId: string, vault: Vault) => {
-    if (modeRef.current !== "shared") return;
-    try {
-      const res = await fetch(
-        `/api/vault?projectId=${encodeURIComponent(projectId)}`,
-        {
-          method: "PUT",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(vault),
-        }
-      );
-      setSyncError(!res.ok);
-    } catch {
-      setSyncError(true);
-    }
-  }, []);
+  const pushVault = useCallback(
+    async (projectId: string, vault: Vault) => {
+      if (modeRef.current !== "shared" || unpublishedRef.current) {
+        markDirty(true);
+        return;
+      }
+      try {
+        const res = await fetch(
+          `/api/vault?projectId=${encodeURIComponent(projectId)}`,
+          {
+            method: "PUT",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(vault),
+          }
+        );
+        setSyncError(!res.ok);
+        if (!res.ok) markDirty(true);
+      } catch {
+        setSyncError(true);
+        markDirty(true);
+      }
+    },
+    [markDirty]
+  );
 
   const deleteVaults = useCallback((projectIds: string[]) => {
     if (modeRef.current !== "shared") return;
@@ -915,6 +1006,75 @@ export function HubProvider({ children }: { children: ReactNode }) {
     [persist]
   );
 
+  const publishLocalChanges = useCallback(async () => {
+    const local = stateRef.current;
+    try {
+      // re-read the current server state so we merge on top of the latest rev
+      const shared = await fetchSharedState();
+      if (shared === "down") {
+        setStorageDown(true);
+        return;
+      }
+      const serverState: HubState = shared ? shared.state : EMPTY;
+      const serverRev = shared ? shared.rev : 0;
+      const merged = mergeStates(serverState, local);
+
+      const res = await fetch("/api/state", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ baseRev: serverRev, ...stripVaults(merged) }),
+      });
+      if (!res.ok) {
+        if (res.status === 503) setStorageDown(true);
+        else if (res.status === 409) setConflict(true);
+        setSyncError(true);
+        return;
+      }
+      const data = await res.json();
+      const newRev = typeof data.rev === "number" ? data.rev : serverRev + 1;
+
+      // upload the vaults this browser holds so the analysis lands on the server
+      for (const p of local.projects) {
+        if (!p.vault) continue;
+        await fetch(`/api/vault?projectId=${encodeURIComponent(p.id)}`, {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(p.vault),
+        }).catch(() => {});
+      }
+
+      unpublishedRef.current = false;
+      setUnpublishedChanges(false);
+      setConflict(false);
+      setSyncError(false);
+      setStorageDown(false);
+      applyShared(newRev, merged);
+      setMode("shared");
+    } catch {
+      setSyncError(true);
+    }
+  }, [applyShared]);
+
+  const discardLocalChanges = useCallback(async () => {
+    try {
+      const shared = await fetchSharedState();
+      if (shared === "down") {
+        setStorageDown(true);
+        return;
+      }
+      unpublishedRef.current = false;
+      setUnpublishedChanges(false);
+      setConflict(false);
+      setSyncError(false);
+      if (shared) {
+        applyShared(shared.rev, shared.state);
+        setMode("shared");
+      }
+    } catch {
+      setSyncError(true);
+    }
+  }, [applyShared]);
+
   return (
     <HubContext.Provider
       value={{
@@ -925,6 +1085,9 @@ export function HubProvider({ children }: { children: ReactNode }) {
         conflict,
         storageDown,
         serverEmptyLocalData,
+        unpublishedChanges,
+        publishLocalChanges,
+        discardLocalChanges,
         restoreToServer,
         reloadShared,
         addDivision,
